@@ -1,47 +1,71 @@
 "use client";
 
-import { useRouter } from 'next/navigation';
 import { useState, useEffect } from "react";
-import { STAGES, Level } from "../lib/typing-data";
-import { LevelSelector } from "../components/LevelSelector";
-import { TypingGame } from "../components/TypingGame";
+import { createClient } from "@/lib/supabase/client";
+import { login, signup, logout, saveTypingResult, getUserProgress } from "./actions";
+import { STAGES, Level } from "@/lib/typing-data";
+import { LevelSelector } from "@/components/LevelSelector";
+import { TypingGame } from "@/components/TypingGame";
 import type { User } from "@supabase/supabase-js";
 
-// ローカル動作をシミュレートするためのダミーユーザー情報
-const DUMMY_USER = {
-  id: "local-user-123",
-  email: "local-mode@example.com",
-} as unknown as User;
-
 export default function Home() {
-  const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [isSignUp, setIsSignUp] = useState(false); // ログインと新規登録の切り替え用
   
   const [highestLevelId, setHighestLevelId] = useState("1-1");
   const [selectedLevel, setSelectedLevel] = useState<Level | null>(null);
   const [gameState, setGameState] = useState<"selecting" | "playing" | "result">("selecting");
   const [lastResult, setLastResult] = useState<{ accuracy: number; isSuccess: boolean } | null>(null);
 
-  useEffect(() => {
-    // 自動でダミーユーザーをログイン状態にする
-    setUser(DUMMY_USER);
+  const supabase = createClient();
 
-    // ローカルストレージから進行状況を読み込む
-    const savedProgress = localStorage.getItem("local_typing_progress");
-    if (savedProgress) {
-      setHighestLevelId(savedProgress);
-    } else {
-      setHighestLevelId("1-1");
+  useEffect(() => {
+    const init = async () => {
+      // 1. 現在ログインしている本物のユーザー情報を取得
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+      
+      // 2. ログインしていればSupabaseから本物の進捗を読み込む
+      if (user) {
+        const progress = await getUserProgress();
+        if (progress) setHighestLevelId(progress);
+      }
+      setLoading(false);
+    };
+    init();
+
+    // ログイン状態の変化をリアルタイムに監視
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        const newUser = session?.user ?? null;
+        setUser(newUser);
+        if (newUser) {
+          const progress = await getUserProgress();
+          if (progress) setHighestLevelId(progress);
+        }
+      }
+    );
+    return () => subscription.unsubscribe();
+  }, [supabase.auth]);
+
+  // ログイン・新規登録の処理
+  const handleAuthSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setAuthError(null);
+    const formData = new FormData(e.currentTarget);
+    
+    const res = isSignUp ? await signup(formData) : await login(formData);
+    if (res?.error) {
+      setAuthError(res.error);
     }
-    setLoading(false);
-  }, []);
+  };
 
   const handleLevelSelect = (level: Level) => {
     const [lStage, lStep] = level.id.split("-").map(Number);
     const [hStage, hStep] = highestLevelId.split("-").map(Number);
 
-    // クリア済みのレベル、または次に進むべきロック解除レベルのみ選択可能
     if (lStage < hStage || (lStage === hStage && lStep <= hStep)) {
       setSelectedLevel(level);
       setGameState("playing");
@@ -61,26 +85,16 @@ export default function Home() {
         }
       }
       
-      // LocalStorageに進捗を直接記録
-      if (isSuccess && nextLevelId) {
+      // Supabaseデータベースに進捗と結果を保存する本物の処理
+      const res = await saveTypingResult(selectedLevel.id, accuracy, isSuccess, nextLevelId);
+      if (res.success && isSuccess && nextLevelId) {
         const [nStage, nStep] = nextLevelId.split("-").map(Number);
         const [hStage, hStep] = highestLevelId.split("-").map(Number);
         if (nStage > hStage || (nStage === hStage && nStep > hStep)) {
           setHighestLevelId(nextLevelId);
-          localStorage.setItem("local_typing_progress", nextLevelId);
         }
       }
     }
-  };
-
-  // 進行状況を1-1にリセットする処理
-  const handleLocalReset = () => {
-    setUser(null);
-    localStorage.removeItem("local_typing_progress");
-    setHighestLevelId("1-1");
-    setTimeout(() => {
-      setUser(DUMMY_USER);
-    }, 500);
   };
 
   if (loading) {
@@ -91,14 +105,72 @@ export default function Home() {
     );
   }
 
+  // ✨ ログインしていない場合は、本物のログイン画面を表示！
   if (!user) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-xl font-medium text-gray-400">Resetting session...</div>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-md w-full bg-white p-8 rounded-3xl shadow-xl">
+          <div className="text-center mb-8">
+            <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">
+              Blind Touch
+            </h2>
+            <p className="mt-2 text-sm text-gray-600">
+              {isSignUp ? "新しいアカウントを作成" : "アカウントにログイン"}
+            </p>
+          </div>
+          
+          <form className="space-y-4" onSubmit={handleAuthSubmit}>
+            <div>
+              <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Email address</label>
+              <input
+                name="email"
+                type="email"
+                required
+                className="appearance-none rounded-xl relative block w-full px-4 py-3 border border-gray-200 placeholder-gray-400 text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                placeholder="you@example.com"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Password</label>
+              <input
+                name="password"
+                type="password"
+                required
+                className="appearance-none rounded-xl relative block w-full px-4 py-3 border border-gray-200 placeholder-gray-400 text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                placeholder="••••••••"
+              />
+            </div>
+
+            {authError && (
+              <div className="text-red-500 text-sm bg-red-50 p-3 rounded-xl border border-red-100 text-center">
+                {authError}
+              </div>
+            )}
+
+            <div>
+              <button
+                type="submit"
+                className="group relative w-full flex justify-center py-3.5 px-4 border border-transparent text-sm font-bold rounded-xl text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors shadow-lg shadow-indigo-100"
+              >
+                {isSignUp ? "新規登録" : "ログイン"}
+              </button>
+            </div>
+          </form>
+
+          <div className="text-center mt-6">
+            <button
+              onClick={() => { setIsSignUp(!isSignUp); setAuthError(null); }}
+              className="text-sm font-medium text-indigo-600 hover:text-indigo-500"
+            >
+              {isSignUp ? "すでにアカウントをお持ちですか？ ログイン" : "アカウントをお持ちでないですか？ 新規登録"}
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
 
+  // ✨ ログインしている場合は、タイピング練習画面を表示！
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center py-12 px-4">
       <header className="w-full max-w-4xl flex justify-between items-center mb-12">
@@ -106,13 +178,13 @@ export default function Home() {
           <h1 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">
             Blind Touch
           </h1>
-          <p className="text-sm text-gray-500">{user.email} (Local Mode)</p>
+          <p className="text-sm text-gray-500">{user.email}</p>
         </div>
         <button
-          onClick={handleLocalReset}
+          onClick={async () => { await logout(); }}
           className="px-4 py-2 text-xs font-bold text-gray-400 hover:text-red-500 uppercase tracking-widest transition-colors"
         >
-          Reset Progress
+          Logout
         </button>
       </header>
 
