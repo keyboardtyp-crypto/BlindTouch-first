@@ -1,0 +1,76 @@
+"use client";
+
+import { KEYBOARD_LAYOUT, FINGER_MAPPING, FINGER_COLORS } from "../lib/typing-data";
+
+interface KeyboardProps {
+  targetKey: string | null;
+  highlightTarget: boolean;
+  homeKey: string | null;
+}
+
+
+// 🟢 1. 直接このファイル内に色の対応表を書いておきます
+const localFingerColors: { [key: string]: string } = {
+  leftPinky: "bg-pink-100 text-pink-700",
+  leftRing: "bg-orange-100 text-orange-700",
+  leftMiddle: "bg-yellow-100 text-yellow-700",
+  leftIndex: "bg-green-100 text-green-700",
+  rightIndex: "bg-blue-100 text-blue-700",
+  rightMiddle: "bg-indigo-100 text-indigo-700",
+  rightRing: "bg-purple-100 text-purple-700",
+  rightPinky: "bg-teal-100 text-teal-700",
+  thumb: "bg-gray-100 text-gray-600",
+};
+
+
+
+export function Keyboard({ targetKey, highlightTarget, homeKey }: KeyboardProps) {
+  // 🟢 追加: ホームキー（asdfjkl;）の定義
+  const homeKeys = "asdfjkl;";
+
+  return (
+    <div className="flex flex-col gap-1 p-4 bg-gray-100 rounded-xl shadow-inner max-w-fit mx-auto">
+      {KEYBOARD_LAYOUT.map((row, rowIndex) => (
+        <div key={rowIndex} className="flex gap-1 justify-center">
+          {row.map((key) => {
+            const finger = FINGER_MAPPING[key];
+            //const colorClass = FINGER_COLORS[finger] || "bg-white";
+            
+            // 🟢 2. FINGER_COLORS[finger] の代わりに、上の localFingerColors を優先して読み込みます
+            const colorClass = localFingerColors[finger] || "bg-white";
+            const isTarget = highlightTarget && key === targetKey;
+            const isHome = key === homeKey;
+            
+            // 🟢 追加: このキーがホームキー（asdfjkl;）に含まれているか判定
+            const isSpecificHomeKey = homeKeys.includes(key.toLowerCase());
+
+            return (
+              <div
+                key={key}
+                className={`
+                  ${key === " " ? "w-64" : "w-10 h-10"}
+                  ${colorClass}
+                  flex items-center justify-center
+                  rounded-md border border-gray-300
+                  text-sm font-semibold uppercase
+                  transition-all duration-100
+                  ${isTarget ? "ring-4 ring-blue-500 scale-110 shadow-lg z-10" : ""}
+                  ${isHome ? "border-b-4 border-b-gray-500" : ""}
+                `}
+              >
+                {/* 🟢 修正箇所: ホームキーなら赤字・太字のスタイルを当てる */}
+                {key === " " ? (
+                  "Space"
+                ) : (
+                  <span className={isSpecificHomeKey ? "text-red-600 font-extrabold text-base" : ""}>
+                    {key}
+                  </span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+}

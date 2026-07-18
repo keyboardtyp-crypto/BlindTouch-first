@@ -1,0 +1,384 @@
+"use client";
+/*
+import { useState, useEffect } from "react";
+//import { createClient } from "@/lib/supabase/client";
+
+import { login, signup, logout, saveTypingResult, getUserProgress } from "./actions";
+import { STAGES, Level } from "../lib/typing-data";
+import { LevelSelector } from "../components/LevelSelector";
+import { TypingGame } from "../components/TypingGame";
+import { User } from "@supabase/supabase-js";
+
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const createClient = () => createSupabaseClient(supabaseUrl, supabaseAnonKey);
+
+*/
+
+import { useRouter } from 'next/navigation';
+import { useState, useEffect } from "react";
+import { login, signup, logout, saveTypingResult, getUserProgress } from "./actions";
+import { STAGES, Level } from "../lib/typing-data";
+import { LevelSelector } from "../components/LevelSelector";
+import { TypingGame } from "../components/TypingGame";
+import { User } from "@supabase/supabase-js";
+
+// 💡 ここで同期的にクライアントを作成します（awaitは不要です）
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+
+// 呼ぶだけで一瞬でクライアントが作れる変数にします
+const supabase = createSupabaseClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: true,   // ブラウザにログイン情報を記憶させる設定
+    autoRefreshToken: true, // トークンの自動更新
+  }
+});
+
+export default function Home() {
+  const router = useRouter(); // 💡 これを追加します
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [authError, setAuthError] = useState<string | null>(null);
+  
+  const [highestLevelId, setHighestLevelId] = useState("1-1");
+  const [selectedLevel, setSelectedLevel] = useState<Level | null>(null);
+  const [gameState, setGameState] = useState<"selecting" | "playing" | "result">("selecting");
+  const [lastResult, setLastResult] = useState<{ accuracy: number; isSuccess: boolean } | null>(null);
+
+  //const supabase = createClient();
+/*
+  useEffect(() => {
+    const init = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+      if (user) {
+        const progress = await getUserProgress();
+        if (progress) setHighestLevelId(progress);
+      }
+      setLoading(false);
+    };
+  */
+ /*
+useEffect(() => {
+    const checkUser = async () => {
+      // 1. ユーザー情報を取得
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      setUser(currentUser);
+      
+      // 2. ユーザーがいれば、タイピングの最高進捗データを読み込む
+      if (currentUser) {
+        const progress = await getUserProgress();
+        if (progress) {
+          setHighestLevelId(progress);
+        }
+      }
+      setLoading(false); // 読み込み完了
+    };
+
+    checkUser();
+
+    // 認証状態の変化を監視する（ログイン・ログアウト時）
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        const newUser = session?.user ?? null;
+        setUser(newUser);
+        
+        if (newUser) {
+          const progress = await getUserProgress();
+          if (progress) setHighestLevelId(progress);
+        }
+      }
+    );
+
+    return () => subscription.unsubscribe();
+  }, []);
+*/
+useEffect(() => {
+    const checkUser = async () => {
+      // 1. 純粋にユーザー情報だけを取得
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      setUser(currentUser);
+      setLoading(false); 
+    };
+
+    checkUser();
+
+    // 認証状態の変化を監視
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        const newUser = session?.user ?? null;
+        setUser(newUser);
+      }
+    );
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+
+  const handleLevelSelect = (level: Level) => {
+    const [lStage, lStep] = level.id.split("-").map(Number);
+    const [hStage, hStep] = highestLevelId.split("-").map(Number);
+
+    if (lStage < hStage || (lStage === hStage && lStep <= hStep)) {
+      setSelectedLevel(level);
+      setGameState("playing");
+    }
+  };
+
+  const handleGameFinish = async (accuracy: number, isSuccess: boolean) => {
+    setLastResult({ accuracy, isSuccess });
+    setGameState("result");
+
+    if (selectedLevel) {
+      let nextLevelId: string | null = null;
+      if (isSuccess) {
+        const currentIndex = STAGES.findIndex(s => s.id === selectedLevel.id);
+        if (currentIndex < STAGES.length - 1) {
+          nextLevelId = STAGES[currentIndex + 1].id;
+        }
+      }
+
+      await saveTypingResult(selectedLevel.id, accuracy, isSuccess, nextLevelId);
+      
+      // Update local state if needed
+      if (isSuccess && nextLevelId) {
+        const [nStage, nStep] = nextLevelId.split("-").map(Number);
+        const [hStage, hStep] = highestLevelId.split("-").map(Number);
+        if (nStage > hStage || (nStage === hStage && nStep > hStep)) {
+          setHighestLevelId(nextLevelId);
+        }
+      }
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-xl font-medium text-gray-400 animate-pulse">Loading...</div>
+      </div>
+    );
+  }
+/*
+  if (!user) {
+    return (
+      
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-3xl shadow-xl p-10 border border-gray-100">
+          <h1 className="text-3xl font-extrabold text-center mb-8 text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">
+            Blind Touch
+          </h1>
+          
+       
+           <form className="space-y-6">
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-2">Email Address</label>
+              <input
+                name="email"
+                type="email"
+                required
+                placeholder="you@example.com"
+                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-2">Password</label>
+              <input
+                name="password"
+                type="password"
+                required
+                placeholder="••••••••"
+                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
+              />
+            </div>
+            
+            {authError && (
+              <div className="bg-red-50 text-red-600 p-4 rounded-xl text-sm font-medium">
+                {authError}
+              </div>
+            )}
+            <div className="flex flex-col gap-3 pt-2">
+              <button
+                formAction={async (formData) => {
+                  const res = await login(formData);
+                  if (res?.error) setAuthError(res.error);
+                }}
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-xl transition-all shadow-lg hover:shadow-indigo-200"
+              >
+                Login
+              </button>
+              <button
+                formAction={async (formData) => {
+                  const res = await signup(formData);
+                  if (res?.error) setAuthError(res.error);
+                  else alert("Check your email for confirmation!");
+                }}
+                className="w-full bg-white hover:bg-gray-50 text-indigo-600 font-bold py-3 px-4 rounded-xl border-2 border-indigo-600 transition-all"
+              >
+                Sign Up
+              </button>
+            </div>
+          </form>
+          */
+ /*  if (!user) {
+    return (
+      
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-3xl shadow-xl p-10 border border-gray-100">
+          <h1 className="text-3xl font-extrabold text-center mb-8 text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">
+            Blind Touch
+          </h1>
+{/* onSubmit を追加し、formAction を削除しました */}
+/*
+          <form 
+            onSubmit={async (e) => {
+              e.preventDefault();
+              setAuthError(null);
+              const formData = new FormData(e.currentTarget);
+              
+              // ログイン処理を実行
+              const res = await login(formData);
+              if (res?.error) {
+                setAuthError(res.error);
+              } else {
+                // 💡 ログイン成功時：手動でページをリロードして最新の認証状態（user）を反映させます
+                //window.location.reload();
+                router.refresh();
+              }
+            }}
+            className="space-y-6"
+          >
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-2">Email Address</label>
+              <input
+                name="email"
+                type="email"
+                required
+                placeholder="you@example.com"
+                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-2">Password</label>
+              <input
+                name="password"
+                type="password"
+                required
+                placeholder="••••••••"
+                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
+              />
+            </div>
+            {authError && (
+              <div className="bg-red-50 text-red-600 p-4 rounded-xl text-sm font-medium">
+                {authError}
+              </div>
+            )}
+            <div className="flex flex-col gap-3 pt-2">
+              {/* type="submit" に変更し、formAction を削除 */}
+              <button
+                type="submit"
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-xl transition-all shadow-lg hover:shadow-indigo-200"
+              >
+                Login
+              </button>
+              
+              {/* Sign Up は元の仕組み、またはクリックイベントで処理 */}
+              <button
+                type="button"
+                onClick={async (e) => {
+                  const form = e.currentTarget.closest('form');
+                  if (!form) return;
+                  const formData = new FormData(form);
+                  const res = await signup(formData);
+                  if (res?.error) setAuthError(res.error);
+                  else alert("Check your email for confirmation!");
+                }}
+                className="w-full bg-white hover:bg-gray-50 text-indigo-600 font-bold py-3 px-4 rounded-xl border-2 border-indigo-600 transition-all"
+              >
+                Sign Up
+              </button>
+            </div>
+          </form>
+*/
+
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center py-12 px-4">
+      <header className="w-full max-w-4xl flex justify-between items-center mb-12">
+        <div>
+          <h1 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">
+            Blind Touch
+          </h1>
+          <p className="text-sm text-gray-500">{user.email}</p>
+        </div>
+        <button
+          onClick={() => logout()}
+          className="px-4 py-2 text-xs font-bold text-gray-400 hover:text-red-500 uppercase tracking-widest transition-colors"
+        >
+          Logout
+        </button>
+      </header>
+
+      <main className="w-full flex flex-col items-center">
+        {gameState === "selecting" && (
+          <LevelSelector 
+            highestLevelId={highestLevelId} 
+            onSelectLevel={handleLevelSelect} 
+          />
+        )}
+
+        {gameState === "playing" && selectedLevel && (
+          <TypingGame 
+            level={selectedLevel} 
+            onFinish={handleGameFinish} 
+            onCancel={() => setGameState("selecting")} 
+          />
+        )}
+
+        {gameState === "result" && lastResult && selectedLevel && (
+          <div className="max-w-md w-full bg-white rounded-3xl shadow-xl p-10 text-center animate-in fade-in zoom-in duration-300">
+            <h2 className="text-2xl font-bold text-gray-800 mb-2">Practice Result</h2>
+            <p className="text-gray-500 mb-8">{selectedLevel.title}</p>
+            
+            <div className={`text-6xl font-black mb-4 ${lastResult.isSuccess ? 'text-green-500' : 'text-red-500'}`}>
+              {Math.round(lastResult.accuracy)}%
+            </div>
+            
+            <p className="text-lg font-bold mb-10 text-gray-700">
+              {lastResult.isSuccess 
+                ? "Level Cleared! 🎉" 
+                : `Need ${selectedLevel.threshold}% to pass. Keep trying!`}
+            </p>
+
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={() => setGameState("playing")}
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-2xl transition-all shadow-lg hover:shadow-indigo-200"
+              >
+                Try Again
+              </button>
+              <button
+                onClick={() => setGameState("selecting")}
+                className="w-full bg-white hover:bg-gray-50 text-gray-600 font-bold py-4 rounded-2xl border border-gray-200 transition-all"
+              >
+                Back to Levels
+              </button>
+            </div>
+          </div>
+        )}
+      </main>
+
+      <footer className="mt-20 text-center text-gray-400 text-sm">
+        Focus on accuracy, speed will come naturally.
+      </footer>
+    </div>
+  );
+}

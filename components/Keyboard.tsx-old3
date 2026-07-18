@@ -1,0 +1,78 @@
+"use client";
+
+import { KEYBOARD_LAYOUT, FINGER_MAPPING } from "../lib/typing-data";
+
+interface KeyboardProps {
+  targetKey: string | null;
+  highlightTarget: boolean;
+  homeKey: string | null;
+}
+
+const FORCE_FINGER_STYLES: { [key: string]: { bg: string; text: string; border: string } } = {
+  leftPinky: { bg: "#ffe4e6", text: "#be123c", border: "#fda4af" },
+  leftRing: { bg: "#ffedd5", text: "#c2410c", border: "#fed7aa" },
+  leftMiddle: { bg: "#fef9c3", text: "#a16207", border: "#fef08a" },
+  leftIndex: { bg: "#dcfce7", text: "#15803d", border: "#bbf7d0" },
+  rightIndex: { bg: "#dbeafe", text: "#1d4ed8", border: "#bfdbfe" },
+  rightMiddle: { bg: "#e0e7ff", text: "#4338ca", border: "#c7d2fe" },
+  rightRing: { bg: "#f3e8ff", text: "#6b21a8", border: "#e9d5ff" },
+  rightPinky: { bg: "#ccfbf1", text: "#0f766e", border: "#99f6e4" },
+  thumb: { bg: "#f3f4f6", text: "#4b5563", border: "#d1d5db" },
+};
+
+export function Keyboard({ targetKey, highlightTarget, homeKey }: KeyboardProps) {
+  const homeKeys = "asdfjkl;";
+
+  return (
+    <div className="flex flex-col gap-1 p-4 bg-gray-100 rounded-xl shadow-inner max-w-fit mx-auto">
+      {KEYBOARD_LAYOUT.map((row, rowIndex) => (
+        <div key={rowIndex} className="flex gap-1 justify-center">
+          {row.map((key) => {
+            const finger = FINGER_MAPPING[key];
+            const fingerStyle = FORCE_FINGER_STYLES[finger] || { bg: "#ffffff", text: "#000000", border: "#d1d5db" };
+            
+            const isTarget = highlightTarget && key === targetKey;
+            const isHome = key === homeKey;
+            const isSpecificHomeKey = homeKeys.includes(key.toLowerCase());
+
+            // ターゲットキー（現在打つべきキー）の時は、目立たせるために青色(カラーコード)を直接指定します
+            const currentBg = isTarget ? "#3b82f6" : fingerStyle.bg;
+            const currentText = isTarget ? "#ffffff" : fingerStyle.text;
+            const currentBorder = isTarget ? "#3b82f6" : fingerStyle.border;
+
+            return (
+              <div
+                key={key}
+                style={{
+                  backgroundColor: currentBg,
+                  color: currentText,
+                  borderColor: currentBorder,
+                }}
+                className={`
+                  ${key === " " ? "w-64" : "w-10 h-10"}
+                  flex items-center justify-center
+                  rounded-md border
+                  text-sm font-semibold uppercase
+                  transition-all duration-100
+                  ${isTarget ? "ring-4 ring-blue-300 scale-110 shadow-lg z-10" : ""}
+                  ${isHome ? "border-b-4 border-b-gray-500" : ""}
+                `}
+              >
+                {key === " " ? (
+                  "Space"
+                ) : (
+                  <span 
+                    style={isSpecificHomeKey ? { color: "#dc2626" } : undefined}
+                    className={isSpecificHomeKey ? "font-extrabold text-base" : ""}
+                  >
+                    {key}
+                  </span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+}

@@ -1,0 +1,44 @@
+"use client";
+
+import { KEYBOARD_LAYOUT, FINGER_MAPPING, FINGER_COLORS } from "../lib/typing-data";
+
+interface KeyboardProps {
+  targetKey: string | null;
+  highlightTarget: boolean;
+  homeKey: string | null;
+}
+
+export function Keyboard({ targetKey, highlightTarget, homeKey }: KeyboardProps) {
+  return (
+    <div className="flex flex-col gap-1 p-4 bg-gray-100 rounded-xl shadow-inner max-w-fit mx-auto">
+      {KEYBOARD_LAYOUT.map((row, rowIndex) => (
+        <div key={rowIndex} className="flex gap-1 justify-center">
+          {row.map((key) => {
+            const finger = FINGER_MAPPING[key];
+            const colorClass = FINGER_COLORS[finger] || "bg-white";
+            const isTarget = highlightTarget && key === targetKey;
+            const isHome = key === homeKey;
+
+            return (
+              <div
+                key={key}
+                className={`
+                  ${key === " " ? "w-64" : "w-10 h-10"}
+                  ${colorClass}
+                  flex items-center justify-center
+                  rounded-md border border-gray-300
+                  text-sm font-semibold uppercase
+                  transition-all duration-100
+                  ${isTarget ? "ring-4 ring-blue-500 scale-110 shadow-lg z-10" : ""}
+                  ${isHome ? "border-b-4 border-b-gray-500" : ""}
+                `}
+              >
+                {key === " " ? "Space" : key}
+              </div>
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+}
