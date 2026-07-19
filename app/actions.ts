@@ -1,5 +1,8 @@
 'use server'
 
+// 1. ファイルの一番上に「redirect」のインポートを追加します
+import { redirect } from 'next/navigation' 
+
 //import { createClient } from '../lib/supabase/server'
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
@@ -25,7 +28,7 @@ export async function login(formData: FormData) {
   return { success: true }
 }
 */
-
+/*
 export async function login(formData: FormData) {
   const supabase = await createClient()
   const data = {
@@ -39,6 +42,30 @@ export async function login(formData: FormData) {
   
   // 🚨 ログインを阻害していた原因：ここの revalidatePath を削除、または以下のように success のみを返します
   return { success: true }
+}
+*/
+
+
+
+
+
+
+export async function login(formData: FormData) {
+  const supabase = await createClient()
+
+  const data = {
+    email: formData.get('email') as string,
+    password: formData.get('password') as string,
+  }
+
+  const { error } = await supabase.auth.signInWithPassword(data)
+
+  if (error) {
+    return { error: error.message }
+  }
+
+  // 💡 以前の revalidatePath を消去し、ログイン成功時に強制的にページをリフレッシュ移動させます
+  redirect('/')
 }
 
 
