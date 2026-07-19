@@ -59,9 +59,6 @@ export default function Home() {
     const res = isSignUp ? await signup(formData) : await login(formData);
     if (res?.error) {
       setAuthError(res.error);
-    } else {
-      // ✨ ログイン・登録成功時に画面をリロードしてセッションと進捗データを同期
-      window.location.reload();
     }
   };
 
