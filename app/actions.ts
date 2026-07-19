@@ -3,6 +3,9 @@
 import { createClient } from '../lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 
+
+
+/*
 export async function login(formData: FormData) {
   const supabase = await createClient()
 
@@ -20,6 +23,24 @@ export async function login(formData: FormData) {
   revalidatePath('/', 'layout')
   return { success: true }
 }
+*/
+
+export async function login(formData: FormData) {
+  const supabase = await createClient()
+  const data = {
+    email: formData.get('email') as string,
+    password: formData.get('password') as string,
+  }
+  const { error } = await supabase.auth.signInWithPassword(data)
+  if (error) {
+    return { error: error.message }
+  }
+  
+  // 🚨 ログインを阻害していた原因：ここの revalidatePath を削除、または以下のように success のみを返します
+  return { success: true }
+}
+
+
 
 export async function saveTypingResult(levelId: string, accuracy: number, isSuccess: boolean, nextLevelId: string | null) {
   const supabase = await createClient()
