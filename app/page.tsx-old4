@@ -12,7 +12,7 @@ export default function Home() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
-  const [isSignUp, setIsSignUp] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(false); // ログインと新規登録の切り替え用
   
   const [highestLevelId, setHighestLevelId] = useState("1-1");
   const [selectedLevel, setSelectedLevel] = useState<Level | null>(null);
@@ -21,26 +21,60 @@ export default function Home() {
 
   const supabase = createClient();
 
+
+
+  /*
   useEffect(() => {
     const init = async () => {
+      // 1. 現在ログインしている本物のユーザー情報を取得
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+      
+      // 2. ログインしていればSupabaseから本物の進捗を読み込む
+      if (user) {
+        const progress = await getUserProgress();
+        if (progress) setHighestLevelId(progress);
+      }
+      setLoading(false);
+    };
+    init();
+
+    // ログイン状態の変化をリアルタイムに監視
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        const newUser = session?.user ?? null;
+        setUser(newUser);
+        if (newUser) {
+          const progress = await getUserProgress();
+          if (progress) setHighestLevelId(progress);
+        }
+      }
+    );
+    return () => subscription.unsubscribe();
+  }, [supabase.auth]);
+*/
+
+useEffect(() => {
+    const init = async () => {
       try {
-        // 確実に現在のログイン状態をチェックする
-        const { data: { user: currentUser } } = await supabase.auth.getUser();
+        // 1. 現在ログインしているユーザー情報を取得
+        const { data: { user } } = await supabase.auth.getUser();
+        setUser(user);
         
-        if (currentUser) {
-          setUser(currentUser);
+        // 2. ログインしていれば進捗を読み込む
+        if (user) {
           const progress = await getUserProgress();
           if (progress) setHighestLevelId(progress);
         }
       } catch (error) {
-        console.error("Auth initialization error:", error);
+        console.error("Auth init error:", error);
       } finally {
-        // 💡 ユーザーの有無に関わらず、チェックが「完全に終わってから」loadingをfalseにする
         setLoading(false);
       }
     };
     init();
 
+    // 💡 getUserProgressのバグを防ぐため、監視処理をシンプルにします
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         setUser(session?.user ?? null);
@@ -49,6 +83,8 @@ export default function Home() {
     return () => subscription.unsubscribe();
   }, [supabase.auth]);
 
+
+  // ログイン・新規登録の処理
   const handleAuthSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setAuthError(null);
@@ -58,7 +94,7 @@ export default function Home() {
     if (res?.error) {
       setAuthError(res.error);
     } else {
-      // 成功したら画面をリロード
+      // ✨ ログイン・登録成功時に画面をリロードしてセッションと進捗データを同期
       window.location.reload();
     }
   };
@@ -86,6 +122,7 @@ export default function Home() {
         }
       }
       
+      // Supabaseデータベースに進捗と結果を保存する本物の処理
       const res = await saveTypingResult(selectedLevel.id, accuracy, isSuccess, nextLevelId);
       if (res.success && isSuccess && nextLevelId) {
         const [nStage, nStep] = nextLevelId.split("-").map(Number);
@@ -97,7 +134,6 @@ export default function Home() {
     }
   };
 
-  // 💡 チェックが終わるまでは真っ白な画面やログイン画面を出さずに、Loadingで確実にガードする
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -106,7 +142,7 @@ export default function Home() {
     );
   }
 
-  // 完全にチェックが終わり、本当にログインしていない場合のみログイン画面を出す
+  // ✨ ログインしていない場合は、本物のログイン画面を表示！
   if (!user) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
@@ -171,7 +207,7 @@ export default function Home() {
     );
   }
 
-  // ログインが確認できたら、確実にタイピング練習画面を表示する
+  // ✨ ログインしている場合は、タイピング練習画面を表示！
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center py-12 px-4">
       <header className="w-full max-w-4xl flex justify-between items-center mb-12">
@@ -182,14 +218,14 @@ export default function Home() {
           <p className="text-sm text-gray-500">{user.email}</p>
         </div>
         <button
-          onClick={async () => { await logout(); window.location.reload(); }}
+          onClick={async () => { await logout(); }}
           className="px-4 py-2 text-xs font-bold text-gray-400 hover:text-red-500 uppercase tracking-widest transition-colors"
         >
           Logout
         </button>
       </header>
 
-      <main className="w-full max-w-4xl flex flex-col items-center">
+      <main className="w-full flex flex-col items-center">
         {gameState === "selecting" && (
           <LevelSelector 
             highestLevelId={highestLevelId} 
