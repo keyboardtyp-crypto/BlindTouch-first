@@ -83,7 +83,6 @@ useEffect(() => {
     return () => subscription.unsubscribe();
   }, [supabase.auth]);
 
-  
 
   // ログイン・新規登録の処理
   const handleAuthSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
