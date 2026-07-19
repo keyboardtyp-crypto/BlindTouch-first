@@ -145,7 +145,7 @@ export async function signup(formData: FormData) {
     return { error: error.message }
   }
 
-  revalidatePath('/', 'layout')
+  //revalidatePath('/', 'layout')
   return { success: true }
 }
 
@@ -157,6 +157,6 @@ export async function logout() {
     return { error: error.message }
   }
 
-  revalidatePath('/', 'layout')
+  //revalidatePath('/', 'layout')
   return { success: true }
 }
