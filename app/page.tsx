@@ -21,6 +21,9 @@ export default function Home() {
 
   const supabase = createClient();
 
+
+
+  /*
   useEffect(() => {
     const init = async () => {
       // 1. 現在ログインしている本物のユーザー情報を取得
@@ -49,6 +52,38 @@ export default function Home() {
     );
     return () => subscription.unsubscribe();
   }, [supabase.auth]);
+*/
+
+useEffect(() => {
+    const init = async () => {
+      try {
+        // 1. 現在ログインしているユーザー情報を取得
+        const { data: { user } } = await supabase.auth.getUser();
+        setUser(user);
+        
+        // 2. ログインしていれば進捗を読み込む
+        if (user) {
+          const progress = await getUserProgress();
+          if (progress) setHighestLevelId(progress);
+        }
+      } catch (error) {
+        console.error("Auth init error:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    init();
+
+    // 💡 getUserProgressのバグを防ぐため、監視処理をシンプルにします
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setUser(session?.user ?? null);
+      }
+    );
+    return () => subscription.unsubscribe();
+  }, [supabase.auth]);
+
+  
 
   // ログイン・新規登録の処理
   const handleAuthSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
