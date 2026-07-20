@@ -1,190 +1,102 @@
-'use server'
+"use server";
 
-// 1. ファイルの一番上に「redirect」のインポートを追加します
-import { redirect } from 'next/navigation' 
+import { createClient } from "@/lib/supabase/server";
 
-import { createClient } from '../lib/supabase/server'
-//import { createClient } from '@/lib/supabase/server'
-import { revalidatePath } from 'next/cache'
-
-
-
-/*
+// 💡 ログイン処理
 export async function login(formData: FormData) {
-  const supabase = await createClient()
+  const email = formData.get("email") as string;
+  const password = formData.get("password") as string;
 
-  const data = {
-    email: formData.get('email') as string,
-    password: formData.get('password') as string,
-  }
+  const supabase = await createClient();
 
-  const { error } = await supabase.auth.signInWithPassword(data)
+  const { error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
 
   if (error) {
-    return { error: error.message }
+    return { error: error.message };
   }
 
-  revalidatePath('/', 'layout')
-  return { success: true }
-}
-*/
-/*
-export async function login(formData: FormData) {
-  const supabase = await createClient()
-  const data = {
-    email: formData.get('email') as string,
-    password: formData.get('password') as string,
-  }
-  const { error } = await supabase.auth.signInWithPassword(data)
-  if (error) {
-    return { error: error.message }
-  }
-  
-  // 🚨 ログインを阻害していた原因：ここの revalidatePath を削除、または以下のように success のみを返します
-  return { success: true }
+  return { success: true };
 }
 
-*/
-
-
-
-
-
-export async function login(formData: FormData) {
-  const supabase = await createClient()
-
-  const data = {
-    email: formData.get('email') as string,
-    password: formData.get('password') as string,
-  }
-
-  const { error } = await supabase.auth.signInWithPassword(data)
-
-  if (error) {
-    return { error: error.message }
-  }
-
-  // 💡 以前の revalidatePath を消去し、ログイン成功時に強制的にページをリフレッシュ移動させます
-  redirect('/')
-}
-
-
-
-export async function saveTypingResult(levelId: string, accuracy: number, isSuccess: boolean, nextLevelId: string | null) {
-  const supabase = await createClient()
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
-    return { error: 'User not authenticated' }
-  }
-
-  // ⭕ 正しいテーブル名 'typing_results' に修正
-  const { error: resultError } = await supabase.from('typing_results').insert([
-    {
-      user_id: user.id,
-      level_id: levelId,
-      accuracy,
-      is_success: isSuccess,
-    },
-  ])
-
-  if (resultError) {
-    console.error('Error saving result:', resultError)
-    return { error: resultError.message }
-  }
-
-  // If successful and there is a next level, update progress
-  if (isSuccess && nextLevelId) {
-    const { data: currentProgress } = await supabase
-      .from('user_progress')
-      .select('highest_level_id')
-      .eq('user_id', user.id)
-      .single()
-
-    const shouldUpdate = !currentProgress || isNewerLevel(nextLevelId, currentProgress.highest_level_id)
-
-    if (shouldUpdate) {
-      const { error: progressError } = await supabase
-        .from('user_progress')
-        .upsert({
-          user_id: user.id,
-          highest_level_id: nextLevelId,
-          updated_at: new Date().toISOString(),
-        })
-
-      if (progressError) {
-        console.error('Error updating progress:', progressError)
-      }
-    }
-  }
-
-  return { success: true }
-}
-
-export async function getUserProgress() {
-  const supabase = await createClient()
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
-    return null
-  }
-
-  // ⭕ 正しいテーブル名 'user_progress' に修正
-  const { data, error } = await supabase
-    .from('user_progress')
-    .select('highest_level_id')
-    .eq('user_id', user.id)
-    .single()
-
-  if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows returned"
-    console.error('Error fetching progress:', error)
-    return null
-  }
-
-  return data?.highest_level_id || '1-1'
-}
-
-function isNewerLevel(nextLevelId: string, currentLevelId: string): boolean {
-  const [nextStage, nextStep] = nextLevelId.split('-').map(Number)
-  const [currStage, currStep] = currentLevelId.split('-').map(Number)
-
-  if (nextStage > currStage) return true
-  if (nextStage === currStage && nextStep > currStep) return true
-  return false
-}
-
+// 💡 新規登録処理
 export async function signup(formData: FormData) {
-  const supabase = await createClient()
+  const email = formData.get("email") as string;
+  const password = formData.get("password") as string;
 
-  const data = {
-    email: formData.get('email') as string,
-    password: formData.get('password') as string,
-  }
+  const supabase = await createClient();
 
-  const { error } = await supabase.auth.signUp(data)
+  const { error } = await supabase.auth.signUp({
+    email,
+    password,
+  });
 
   if (error) {
-    return { error: error.message }
+    return { error: error.message };
   }
 
-  //revalidatePath('/', 'layout')
-  return { success: true }
+  return { success: true };
 }
 
+// 💡 ログアウト処理
 export async function logout() {
-  const supabase = await createClient()
-  const { error } = await supabase.auth.signOut()
+  const supabase = await createClient();
+  await supabase.auth.signOut();
+  return { success: true };
+}
 
-  if (error) {
-    return { error: error.message }
+// 💡 タイピング結果の保存
+export async function saveTypingResult(
+  levelId: string,
+  accuracy: number,
+  isSuccess: boolean,
+  nextLevelId: string | null
+) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { success: false, error: "Not authenticated" };
   }
 
-  //revalidatePath('/', 'layout')
-  return { success: true }
+  // スコア履歴の追加
+  const { error: scoreError } = await supabase.from("scores").insert({
+    user_id: user.id,
+    level_id: levelId,
+    accuracy,
+    is_success: isSuccess,
+  });
+
+  if (scoreError) {
+    console.error("Score save error:", scoreError);
+  }
+
+  // クリア成功時に進捗を更新
+  if (isSuccess && nextLevelId) {
+    await supabase.from("profiles").upsert({
+      id: user.id,
+      highest_level_id: nextLevelId,
+      updated_at: new Date().toISOString(),
+    });
+  }
+
+  return { success: true };
+}
+
+// 💡 ユーザーの最高進捗を取得
+export async function getUserProgress() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) return null;
+
+  const { data } = await supabase
+    .from("profiles")
+    .select("highest_level_id")
+    .eq("id", user.id)
+    .single();
+
+  return data?.highest_level_id ?? "1-1";
 }
