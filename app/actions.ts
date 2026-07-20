@@ -142,7 +142,7 @@ export async function getUserProgress() {
 
     // 💡 1秒以内に応答がなければ自動的に初期値 "1-1" を返して通信詰まりを回避
     const progressPromise = supabase
-      .from("profiles")
+      .from("user_profiles")
       .select("highest_level_id")
       .eq("id", user.id)
       .maybeSingle();
