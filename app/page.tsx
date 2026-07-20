@@ -64,8 +64,9 @@ export default function Home() {
     if (res?.error) {
       setAuthError(res.error);
       setLoading(false);
-    } else {
-      window.location.reload();
+    //2026721変更
+    //} else {
+    //  window.location.reload();
     }
   };
 
