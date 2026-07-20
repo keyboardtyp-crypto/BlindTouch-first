@@ -85,6 +85,7 @@ export async function saveTypingResult(
   return { success: true };
 }
 
+/*
 // 💡 ユーザーの最高進捗を取得
 export async function getUserProgress() {
   const supabase = await createClient();
@@ -99,4 +100,30 @@ export async function getUserProgress() {
     .single();
 
   return data?.highest_level_id ?? "1-1";
+}
+
+*/
+// 💡 ユーザーの最高進捗を取得（エラーが起きても止まらない安全版）
+export async function getUserProgress() {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) return "1-1";
+
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("highest_level_id")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (error || !data) {
+      return "1-1";
+    }
+
+    return data.highest_level_id ?? "1-1";
+  } catch (err) {
+    console.error("getUserProgress error:", err);
+    return "1-1";
+  }
 }
