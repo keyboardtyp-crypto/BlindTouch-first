@@ -41,16 +41,33 @@ export default function Home() {
     };
     init();
 
+
+/*
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         setUser(session?.user ?? null);
       }
     );
+*/
+// 💡 認証状態の変化をリスナーでリアルタイム検知する 20260720
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (session?.user) {
+          setUser(session.user);
+          const progress = await getUserProgress();
+          if (progress) setHighestLevelId(progress);
+        } else {
+          setUser(null);
+        }
+        setLoading(false);
+      }
+    );
+
     return () => subscription.unsubscribe();
   }, [supabase.auth]);
 
 
-  
+/*20260720に変更
   const handleAuthSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setAuthError(null);
@@ -63,6 +80,22 @@ export default function Home() {
       // 成功したら画面をリロード
       window.location.reload();
     }
+*/
+//20260720iに変更
+const handleAuthSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setAuthError(null);
+    setLoading(true); // 💡 ログイン処理中ローディングにする
+    const formData = new FormData(e.currentTarget);
+    
+    const res = isSignUp ? await signup(formData) : await login(formData);
+    if (res?.error) {
+      setAuthError(res.error);
+      setLoading(false);
+    }
+    // 💡 成功時は onAuthStateChange が自動検知して画面を切り替えるため reload は不要！
+  };
+
   };
 
 /*
