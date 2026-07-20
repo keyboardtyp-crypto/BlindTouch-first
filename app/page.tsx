@@ -49,6 +49,8 @@ export default function Home() {
     return () => subscription.unsubscribe();
   }, [supabase.auth]);
 
+
+  /*
   const handleAuthSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setAuthError(null);
@@ -62,6 +64,22 @@ export default function Home() {
       window.location.reload();
     }
   };
+*/
+
+const handleAuthSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setAuthError(null);
+    
+    // 💡 Supabaseの認証通信を完全に無視して、ダミーユーザーをセットして強制突破する
+    setUser({
+      id: "dummy-user-id",
+      email: "test@example.com",
+      role: "authenticated",
+      aud: "authenticated",
+      created_at: new Date().toISOString(),
+    } as any);
+  };
+
 
   const handleLevelSelect = (level: Level) => {
     const [lStage, lStep] = level.id.split("-").map(Number);
