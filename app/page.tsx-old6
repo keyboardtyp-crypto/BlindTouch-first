@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
+//port { login, signup, logout, saveTypingResult, getUserProgress } from "./actions";
 import { login, signup, logout, saveTypingResult, getUserProgress } from "@/app/actions";
 import { STAGES, Level } from "@/lib/typing-data";
 import { LevelSelector } from "@/components/LevelSelector";
@@ -19,30 +20,33 @@ export default function Home() {
   const [gameState, setGameState] = useState<"selecting" | "playing" | "result">("selecting");
   const [lastResult, setLastResult] = useState<{ accuracy: number; isSuccess: boolean } | null>(null);
 
+  const supabase = createClient();
+/*
   useEffect(() => {
-    const supabase = createClient();
-
-    // 1. セッション初期確認
-    supabase.auth.getUser().then(({ data: { user: currentUser } }) => {
-      setUser(currentUser);
-      if (currentUser) {
-        getUserProgress().then((progress) => {
+    const init = async () => {
+      try {
+        const { data: { user: currentUser } } = await supabase.auth.getUser();
+        
+        if (currentUser) {
+          setUser(currentUser);
+          const progress = await getUserProgress();
           if (progress) setHighestLevelId(progress);
-        });
+        }
+      } catch (error) {
+        console.error("Auth initialization error:", error);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false); // 💡 何があっても必ずローディングを解除する
-    }).catch(() => {
-      setLoading(false);
-    });
+    };
+    init();
 
-    // 2. 認証状態の変化を監視
+    // 認証状態の変化をリアルタイム検知
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
+      async (event, session) => {
         if (session?.user) {
           setUser(session.user);
-          getUserProgress().then((progress) => {
-            if (progress) setHighestLevelId(progress);
-          });
+          const progress = await getUserProgress();
+          if (progress) setHighestLevelId(progress);
         } else {
           setUser(null);
         }
@@ -51,7 +55,60 @@ export default function Home() {
     );
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [supabase.auth]);
+*/
+
+useEffect(() => {
+    let isMounted = true;
+
+    const init = async () => {
+      try {
+        const { data: { user: currentUser } } = await supabase.auth.getUser();
+        
+        if (currentUser && isMounted) {
+          setUser(currentUser);
+          
+          // 💡 await せずにバックグラウンドで読み込むことで Loading フリーズを回避
+          getUserProgress()
+            .then((progress) => {
+              if (progress && isMounted) setHighestLevelId(progress);
+            })
+            .catch((err) => console.error("Progress load error:", err));
+        }
+      } catch (error) {
+        console.error("Auth initialization error:", error);
+      } finally {
+        // 💡 認証チェックが終わったら瞬時にローディングを解除
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    init();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        if (!isMounted) return;
+
+        if (session?.user) {
+          setUser(session.user);
+          getUserProgress()
+            .then((progress) => {
+              if (progress && isMounted) setHighestLevelId(progress);
+            })
+            .catch((err) => console.error("Progress load error:", err));
+        } else {
+          setUser(null);
+        }
+        setLoading(false);
+      }
+    );
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
+  }, [supabase]);
+
 
   const handleAuthSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -60,12 +117,9 @@ export default function Home() {
     const formData = new FormData(e.currentTarget);
     
     const res = isSignUp ? await signup(formData) : await login(formData);
-    
     if (res?.error) {
       setAuthError(res.error);
       setLoading(false);
-    } else {
-      window.location.reload();
     }
   };
 
