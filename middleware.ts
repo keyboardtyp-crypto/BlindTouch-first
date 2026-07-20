@@ -6,9 +6,17 @@ export async function middleware(request: NextRequest) {
     request,
   });
 
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  // 環境変数が取得できない場合は処理をスキップしてスルーする
+  if (!supabaseUrl || !supabaseAnonKey) {
+    return supabaseResponse;
+  }
+
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    supabaseUrl,
+    supabaseAnonKey,
     {
       cookies: {
         getAll() {
@@ -29,8 +37,12 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // セッション更新（これで認証クッキーがブラウザと同期されます）
-  await supabase.auth.getUser();
+  try {
+    // セッション更新
+    await supabase.auth.getUser();
+  } catch (e) {
+    console.error("Middleware auth error:", e);
+  }
 
   return supabaseResponse;
 }
