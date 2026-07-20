@@ -21,7 +21,7 @@ export default function Home() {
   const [lastResult, setLastResult] = useState<{ accuracy: number; isSuccess: boolean } | null>(null);
 
   const supabase = createClient();
-
+/*
   useEffect(() => {
     const init = async () => {
       try {
@@ -56,6 +56,59 @@ export default function Home() {
 
     return () => subscription.unsubscribe();
   }, [supabase.auth]);
+*/
+
+useEffect(() => {
+    let isMounted = true;
+
+    const init = async () => {
+      try {
+        const { data: { user: currentUser } } = await supabase.auth.getUser();
+        
+        if (currentUser && isMounted) {
+          setUser(currentUser);
+          
+          // 💡 await せずにバックグラウンドで読み込むことで Loading フリーズを回避
+          getUserProgress()
+            .then((progress) => {
+              if (progress && isMounted) setHighestLevelId(progress);
+            })
+            .catch((err) => console.error("Progress load error:", err));
+        }
+      } catch (error) {
+        console.error("Auth initialization error:", error);
+      } finally {
+        // 💡 認証チェックが終わったら瞬時にローディングを解除
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    init();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        if (!isMounted) return;
+
+        if (session?.user) {
+          setUser(session.user);
+          getUserProgress()
+            .then((progress) => {
+              if (progress && isMounted) setHighestLevelId(progress);
+            })
+            .catch((err) => console.error("Progress load error:", err));
+        } else {
+          setUser(null);
+        }
+        setLoading(false);
+      }
+    );
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
+  }, [supabase]);
+
 
   const handleAuthSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
