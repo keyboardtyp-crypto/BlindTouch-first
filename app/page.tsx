@@ -50,7 +50,7 @@ export default function Home() {
   }, [supabase.auth]);
 
 
-  /*
+  
   const handleAuthSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setAuthError(null);
@@ -64,8 +64,8 @@ export default function Home() {
       window.location.reload();
     }
   };
-*/
 
+/*
 const handleAuthSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setAuthError(null);
@@ -79,7 +79,7 @@ const handleAuthSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
       created_at: new Date().toISOString(),
     } as any);
   };
-
+*/
 
   const handleLevelSelect = (level: Level) => {
     const [lStage, lStep] = level.id.split("-").map(Number);
