@@ -3,8 +3,8 @@
 // 1. ファイルの一番上に「redirect」のインポートを追加します
 import { redirect } from 'next/navigation' 
 
-//import { createClient } from '../lib/supabase/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '../lib/supabase/server'
+//import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 
 
@@ -43,8 +43,8 @@ export async function login(formData: FormData) {
   // 🚨 ログインを阻害していた原因：ここの revalidatePath を削除、または以下のように success のみを返します
   return { success: true }
 }
-*/
 
+*/
 
 
 
