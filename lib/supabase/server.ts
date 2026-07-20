@@ -17,12 +17,16 @@ export async function createClient() {
           try {
             // 💡 引数の分割代入部分に : any を追加して暗黙のanyを解消
             cookiesToSet.forEach(({ name, value, options }: any) =>
+              
+              /*
               cookieStore.set(name, value, { 
                 ...options, 
                 secure: process.env.NODE_ENV === 'production',
                 sameSite: 'lax',
                 path: '/'
               })
+              */
+              cookieStore.set(name, value, options)
             )
           } catch {
             // サーバーアクション内での変更を許容するための catch ブロック
