@@ -103,6 +103,8 @@ export async function getUserProgress() {
 }
 
 */
+
+/*
 // 💡 ユーザーの最高進捗を取得（エラーが起きても止まらない安全版）
 export async function getUserProgress() {
   try {
@@ -122,6 +124,36 @@ export async function getUserProgress() {
     }
 
     return data.highest_level_id ?? "1-1";
+  } catch (err) {
+    console.error("getUserProgress error:", err);
+    return "1-1";
+  }
+}
+
+*/
+
+// 💡 ユーザーの最高進捗を取得（1秒でタイムアウトしてフリーズを完全防止する safe版）
+export async function getUserProgress() {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) return "1-1";
+
+    // 💡 1秒以内に応答がなければ自動的に初期値 "1-1" を返して通信詰まりを回避
+    const progressPromise = supabase
+      .from("profiles")
+      .select("highest_level_id")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    const timeoutPromise = new Promise<{ data: null }>((resolve) =>
+      setTimeout(() => resolve({ data: null }), 1000)
+    );
+
+    const result = await Promise.race([progressPromise, timeoutPromise]);
+
+    return (result as any)?.data?.highest_level_id ?? "1-1";
   } catch (err) {
     console.error("getUserProgress error:", err);
     return "1-1";
