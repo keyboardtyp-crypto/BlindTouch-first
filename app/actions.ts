@@ -21,8 +21,8 @@ export async function login(formData: FormData) {
   if (!authData?.user) {
     return { error: "[Error] ユーザー情報が取得できませんでした" };
   }
-
-  revalidatePath("/", "layout");
+// 💡 リダイレクト・キャッシュクリアを一旦オフにして純粋にレスポンスを返す
+ // revalidatePath("/", "layout");
   return { success: true };
 }
 
