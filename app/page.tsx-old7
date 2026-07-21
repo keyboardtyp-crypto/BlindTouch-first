@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { login, signup, logout, saveTypingResult, getUserProgress } from "./actions"; // Relative import
+import { login, signup, logout, saveTypingResult, getUserProgress } from "@/app/actions";
 import { STAGES, Level } from "@/lib/typing-data";
 import { LevelSelector } from "@/components/LevelSelector";
 import { TypingGame } from "@/components/TypingGame";
@@ -21,8 +21,8 @@ export default function Home() {
 
   useEffect(() => {
     const supabase = createClient();
-
-    // 💡 保証用タイマー：2秒後に必ずLoadingを強制解除
+    
+// 💡 保証用タイマー：万が一Supabaseのレスポンスが来なくても、2秒後に必ずLoadingを強制解除する
     const timer = setTimeout(() => {
       setLoading(false);
     }, 2000);
@@ -31,20 +31,13 @@ export default function Home() {
     supabase.auth.getUser().then(({ data: { user: currentUser } }) => {
       setUser(currentUser);
       if (currentUser) {
-        // 💡 progress に : string 型を明示
-        getUserProgress().then((progress: string | null) => {
+        getUserProgress().then((progress) => {
           if (progress) setHighestLevelId(progress);
-        }).finally(() => {
-          setLoading(false);
-          clearTimeout(timer);
         });
-      } else {
-        setLoading(false);
-        clearTimeout(timer);
       }
+      setLoading(false); // 💡 何があっても必ずローディングを解除する
     }).catch(() => {
       setLoading(false);
-      clearTimeout(timer);
     });
 
     // 2. 認証状態の変化を監視
@@ -52,22 +45,17 @@ export default function Home() {
       (_event, session) => {
         if (session?.user) {
           setUser(session.user);
-          // 💡 progress に : string 型を明示
-          getUserProgress().then((progress: string | null) => {
+          getUserProgress().then((progress) => {
             if (progress) setHighestLevelId(progress);
           });
         } else {
           setUser(null);
         }
         setLoading(false);
-        clearTimeout(timer);
       }
     );
 
-    return () => {
-      subscription.unsubscribe();
-      clearTimeout(timer);
-    };
+    return () => subscription.unsubscribe();
   }, []);
 
   const handleAuthSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -81,8 +69,9 @@ export default function Home() {
     if (res?.error) {
       setAuthError(res.error);
       setLoading(false);
-    } else {
-      window.location.reload();
+    //2026721変更
+    //} else {
+    //  window.location.reload();
     }
   };
 
