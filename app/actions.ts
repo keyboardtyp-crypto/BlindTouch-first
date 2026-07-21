@@ -2,116 +2,110 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 
-// 💡 ログイン処理
 export async function login(formData: FormData) {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
 
   const supabase = await createClient();
 
-  const { error } = await supabase.auth.signInWithPassword({
+  const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
     email,
     password,
   });
 
-  if (error) {
-    return { error: error.message };
+  if (authError) {
+    return { error: `[Supabase Error] ${authError.message}` };
   }
 
-  // ログイン成功時にキャッシュを更新して画面を更新
+  if (!authData?.user) {
+    return { error: "[Error] ユーザー情報が取得できませんでした" };
+  }
+
   revalidatePath("/", "layout");
-  redirect("/");
+  return { success: true };
 }
 
-// 💡 新規登録処理
 export async function signup(formData: FormData) {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
 
   const supabase = await createClient();
 
-  const { error } = await supabase.auth.signUp({
+  const { data: authData, error: authError } = await supabase.auth.signUp({
     email,
     password,
   });
 
-  if (error) {
-    return { error: error.message };
+  if (authError) {
+    return { error: `[Supabase Error] ${authError.message}` };
   }
 
   revalidatePath("/", "layout");
-  redirect("/");
+  return { success: true };
 }
 
-// 💡 ログアウト処理
 export async function logout() {
   const supabase = await createClient();
   await supabase.auth.signOut();
   revalidatePath("/", "layout");
-  redirect("/");
 }
 
-// 💡 タイピング結果の保存
-export async function saveTypingResult(
-  levelId: string,
-  accuracy: number,
-  isSuccess: boolean,
-  nextLevelId: string | null
-) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return { success: false, error: "Not authenticated" };
-  }
-
-  // スコア履歴の追加
-  const { error: scoreError } = await supabase.from("scores").insert({
-    user_id: user.id,
-    level_id: levelId,
-    accuracy,
-    is_success: isSuccess,
-  });
-
-  if (scoreError) {
-    console.error("Score save error:", scoreError);
-  }
-
-  // クリア成功時に進捗を更新 (user_progress テーブルを使用)
-  if (isSuccess && nextLevelId) {
-    await supabase.from("user_progress").upsert({
-      user_id: user.id,
-      highest_level_id: nextLevelId,
-      updated_at: new Date().toISOString(),
-    });
-  }
-
-  return { success: true };
-}
-
-// 💡 ユーザーの最高進捗を取得
-export async function getUserProgress() {
+export async function getUserProgress(): Promise<string> {
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) return "1-1";
 
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("user_progress")
       .select("highest_level_id")
       .eq("user_id", user.id)
       .maybeSingle();
 
-    if (error || !data) {
-      return "1-1";
+    return data?.highest_level_id ?? "1-1";
+  } catch (err) {
+    return "1-1";
+  }
+}
+
+export async function saveTypingResult(
+  levelId: string,
+  accuracy: number,
+  isSuccess: boolean,
+  nextLevelId: string | null
+) {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) return { success: false, error: "未ログイン" };
+
+    if (isSuccess && nextLevelId) {
+      const { data: currentProgress } = await supabase
+        .from("user_progress")
+        .select("highest_level_id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      const current = currentProgress?.highest_level_id ?? "1-1";
+      const [cStage, cStep] = current.split("-").map(Number);
+      const [nStage, nStep] = nextLevelId.split("-").map(Number);
+
+      if (nStage > cStage || (nStage === cStage && nStep > cStep)) {
+        await supabase
+          .from("user_progress")
+          .upsert({
+            user_id: user.id,
+            highest_level_id: nextLevelId,
+            updated_at: new Date().toISOString(),
+          });
+      }
     }
 
-    return data.highest_level_id ?? "1-1";
+    return { success: true };
   } catch (err) {
-    console.error("getUserProgress error:", err);
-    return "1-1";
+    return { success: false, error: "保存失敗" };
   }
 }
