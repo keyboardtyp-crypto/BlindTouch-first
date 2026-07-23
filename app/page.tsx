@@ -189,6 +189,7 @@ export default function Home() {
         <input
           name="email"
           type="email"
+          autoComplete="email" // 👈 追加
           placeholder="Email"
           required
           className="p-2 border rounded"
@@ -196,6 +197,7 @@ export default function Home() {
         <input
           name="password"
           type="password"
+          autoComplete="current-password" // 👈 C を大文字にします
           placeholder="Password"
           required
           className="p-2 border rounded"
