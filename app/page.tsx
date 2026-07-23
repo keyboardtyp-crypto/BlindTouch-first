@@ -150,6 +150,8 @@ export default function Home() {
       setAuthError(res.error);
       setLoading(false);
     } else {
+      // 成功した場合でもリロードせずメッセージを表示してみる
+      alert("ログイン処理は成功を返しました。Cookieの状態を確認します。");
       window.location.reload();
     }
   };
