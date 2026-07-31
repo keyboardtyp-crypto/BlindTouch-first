@@ -129,8 +129,16 @@ export default function Home() {
       setLoading(false);
     });
 
+    // 1. getUser の実行確認
+    supabase.auth.getUser().then(({ data, error }) => {
+      console.log('--- Client getUser Check ---', { user: data?.user, error });
+      setUser(data?.user ?? null);
+      setLoading(false);
+    });
+
     // 認証状態の変更を監視
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+     console.log('--- Auth State Changed ---', _event, session?.user?.email);
       setUser(session?.user ?? null);
       setLoading(false);
     });
@@ -150,6 +158,7 @@ export default function Home() {
       setAuthError(res.error);
       setLoading(false);
     } else {
+      console.log('--- Reloading Page ---');
       // 成功した場合でもリロードせずメッセージを表示してみる
       alert("ログイン処理は成功を返しました。Cookieの状態を確認します。");
       window.location.reload();
