@@ -1,0 +1,62 @@
+"use server";
+
+import { createClient } from "@/lib/supabase/server";
+
+// 💡 ユーザーの最高到達レベルを取得する関数
+export async function getUserProgress(): Promise<string | null> {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return null;
+
+  // typing_results テーブルから最も高い level_id を取得
+  const { data, error } = await supabase
+    .from("typing_results")
+    .select("level_id")
+    .eq("user_id", user.id)
+    .eq("is_success", true)
+    .order("created_at", { ascending: false });
+
+  if (error || !data || data.length === 0) {
+    return "1-1"; // 初期値
+  }
+
+  // 解放済みの最高レベルを決定
+  return data[0].level_id || "1-1";
+}
+
+// 💡 タイピング結果をデータベースに保存する関数
+export async function saveTypingResult(
+  levelId: string,
+  accuracy: number,
+  isSuccess: boolean,
+  nextLevelId: string | null
+) {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { success: false, error: "User not authenticated" };
+  }
+
+  // 成績の保存
+  const { error } = await supabase.from("typing_results").insert({
+    user_id: user.id,
+    level_id: levelId,
+    accuracy: Math.round(accuracy),
+    is_success: isSuccess,
+  });
+
+  if (error) {
+    console.error("Failed to save result:", error.message);
+    return { success: false, error: error.message };
+  }
+
+  return { success: true };
+}
