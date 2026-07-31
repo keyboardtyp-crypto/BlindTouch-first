@@ -70,6 +70,8 @@ export async function saveTypingResult(
 }
   */
 
+
+/*本当---
 // クリア成功時のみ進捗を更新
     if (isSuccess && nextLevelId) {
       // 1. 現在の進捗を取得
@@ -119,6 +121,38 @@ export async function saveTypingResult(
     return { success: true };
   } catch (err) {
     console.error("❌ 保存処理で例外が発生しました:", err);
+    return { success: false, error: "保存失敗" };
+  }
+}
+*/
+
+// 保存するレベルID（nextLevelId が無ければ渡された levelId を使う）
+    const targetLevel = nextLevelId || levelId;
+
+    console.log("🔄 保存処理を開始します... User:", user.id, "TargetLevel:", targetLevel);
+
+    // 2. 無条件で upsert（強行保存）
+    const { data, error } = await supabase
+      .from("user_progress")
+      .upsert(
+        {
+          user_id: user.id,
+          highest_level_id: targetLevel,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id" }
+      )
+      .select(); // 結果を受け取る
+
+    if (error) {
+      console.error("❌ Supabase DB保存エラー詳細:", error);
+      return { success: false, error: error.message };
+    }
+
+    console.log("🎉 DB保存成功！ 返却データ:", data);
+    return { success: true };
+  } catch (err) {
+    console.error("❌ 予期せぬ例外エラー:", err);
     return { success: false, error: "保存失敗" };
   }
 }
