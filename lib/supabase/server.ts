@@ -21,15 +21,16 @@ console.log('--- setAll CALLED ---', cookiesToSet.length) // 👈 これを追�
             // 💡 引数の分割代入部分に : any を追加して暗黙のanyを解消
             cookiesToSet.forEach(({ name, value, options }: any) => {
  console.log('Setting Cookie:', name) // 👈 これを追加 test             
-              /*
+              
               cookieStore.set(name, value, { 
                 ...options, 
+                path: options?.path ?? "/", //20260731付け加え
                 secure: process.env.NODE_ENV === 'production',
                 sameSite: 'lax',
-                path: '/'
+                //path: '/'　//20260731けす
               })
-              */
-              cookieStore.set(name, value, options)
+              
+             // cookieStore.set(name, value, options)
            } )
           } catch (error){
             // サーバーアクション内での変更を許容するための catch ブロック
