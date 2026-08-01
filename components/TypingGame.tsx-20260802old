@@ -172,11 +172,7 @@ export function TypingGame({ level, onFinish, onCancel }: TypingGameProps) {
         </div>
       </div>
 
-      <div className="w-full p-8 bg-white rounded-2xl shadow-xl border border-gray-100 min-h-[140px] flex items-center justify-center relative">
-        {/* ---------------------------------------------------- */}
-        {/* 💡 旧コード (10文字制限 & 1行固定のため右に見切れてしまっていた) */}
-        {/* ---------------------------------------------------- */}
-        {/*
+      <div className="w-full p-8 bg-white rounded-2xl shadow-xl border border-gray-100 min-h-[120px] flex items-center justify-center relative overflow-hidden">
         <div className="text-4xl font-mono tracking-[0.2em] whitespace-pre-wrap text-center">
           <span className="text-green-500 opacity-50">
             {targetText.slice(0, currentIndex)}
@@ -188,42 +184,8 @@ export function TypingGame({ level, onFinish, onCancel }: TypingGameProps) {
             {targetText.slice(currentIndex + 1, currentIndex + 10)}
           </span>
         </div>
-        */}
-        {/* ---------------------------------------------------- */}
-
-        {/* 🎯 新コード: 全文字を表示し、折り返し (flex-wrap & break-all) を有効化 */}
-        <div className="flex flex-wrap justify-center items-center gap-1.5 text-3xl font-mono leading-relaxed break-all max-w-full">
-          {targetText.split("").map((char, index) => {
-            if (index < currentIndex) {
-              // 1. すでに入力成功した文字
-              return (
-                <span key={index} className="text-green-500 opacity-60">
-                  {char === " " ? "␣" : char}
-                </span>
-              );
-            }
-            if (index === currentIndex) {
-              // 2. 今打つべきターゲットの文字（青背景ハイライト＆点滅）
-              return (
-                <span
-                  key={index}
-                  className="bg-blue-600 text-white font-bold rounded px-2 py-0.5 shadow-md animate-pulse"
-                >
-                  {char === " " ? "␣" : char}
-                </span>
-              );
-            }
-            // 3. まだ入力していないこれからの文字
-            return (
-              <span key={index} className="text-gray-300">
-                {char === " " ? "␣" : char}
-              </span>
-            );
-          })}
-        </div>
-
         {status === "idle" && (
-          <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center rounded-2xl">
+          <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center">
             <p className="text-xl font-medium text-blue-600 animate-bounce">
               Press any key to start!
             </p>
