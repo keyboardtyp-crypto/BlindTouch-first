@@ -17,7 +17,13 @@ export default function Home() {
   const [highestLevelId, setHighestLevelId] = useState("1-1");
   const [selectedLevel, setSelectedLevel] = useState<Level | null>(null);
   const [gameState, setGameState] = useState<"selecting" | "playing" | "result">("selecting");
-  const [lastResult, setLastResult] = useState<{ accuracy: number; isSuccess: boolean } | null>(null);
+  //const [lastResult, setLastResult] = useState<{ accuracy: number; isSuccess: boolean } | null>(null);
+// 💡 nextLevelId も保持できるように変更
+const [lastResult, setLastResult] = useState<{
+  accuracy: number;
+  isSuccess: boolean;
+  nextLevelId?: string | null;
+} | null>(null);
 
   const supabase = createClient();
 
@@ -135,9 +141,12 @@ export default function Home() {
 */
 // 💡 安全に書き込みを行う修正版 handleGameFinish
   const handleGameFinish = async (accuracy: number, isSuccess: boolean) => {
+    
+/*
     setLastResult({ accuracy, isSuccess });
     setGameState("result");
-
+//20260802
+*/
     // 現在選択中のレベルを取得
     const currentLevel = selectedLevel;
 /*
@@ -179,9 +188,35 @@ const targetLevel = (isSuccess && nextLevelId) ? nextLevelId : currentLevel.id;
 };
 //-------------------------
 */
+// 1. 次のレベル ID を計算
+    let nextLevelId: string | null = null;
+    if (isSuccess) {
+      const currentIndex = STAGES.findIndex(s => s.id === currentLevel.id);
+      if (currentIndex !== -1 && currentIndex < STAGES.length - 1) {
+        nextLevelId = STAGES[currentIndex + 1].id;
+      }
+    }
 
+    // 2. 結果状態を更新（nextLevelId を含める）
+    setLastResult({ accuracy, isSuccess, nextLevelId });
+    setGameState("result");
 
+    // 3. Supabase に保存
+    const targetLevel = (isSuccess && nextLevelId) ? nextLevelId : currentLevel.id;
 
+    const { error } = await supabase
+      .from("user_progress")
+      .upsert(
+        {
+          user_id: user.id,
+          highest_level_id: targetLevel,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id" }
+      );
+
+/*
+//20260802
     let nextLevelId: string | null = null;
     if (isSuccess) {
       const currentIndex = STAGES.findIndex(s => s.id === currentLevel.id);
@@ -208,7 +243,8 @@ const targetLevel = (isSuccess && nextLevelId) ? nextLevelId : currentLevel.id;
         },
         { onConflict: "user_id" }
       );
-
+      //2020802
+*/
     if (error) {
       console.error("❌ 保存エラー:", error.message);
     } else {
@@ -378,17 +414,49 @@ const targetLevel = (isSuccess && nextLevelId) ? nextLevelId : currentLevel.id;
             </p>
 
             <div className="flex flex-col gap-3">
+
+               { /*
+              //20260802
               <button
                 onClick={() => setGameState("playing")}
                 className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-2xl transition-all shadow-lg hover:shadow-indigo-200"
               >
                 Try Again
               </button>
+                */
+               }
+{/* 🎯 クリア成功＆次のステージがある場合は「Next Level」ボタンを表示 */}
+              {lastResult.isSuccess && lastResult.nextLevelId ? (
+                <button
+                  onClick={() => {
+                    const nextLevel = STAGES.find(s => s.id === lastResult.nextLevelId);
+                    if (nextLevel) {
+                      setSelectedLevel(nextLevel);
+                      setGameState("playing");
+                    }
+                  }}
+                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-2xl transition-all shadow-lg hover:shadow-indigo-200"
+                >
+                  Next Level (次のステージへ) 🚀
+                </button>
+              ) : (
+                /* 不合格または最終ステージ時は「Try Again」を表示 */
+                <button
+                  onClick={() => setGameState("playing")}
+                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-2xl transition-all shadow-lg hover:shadow-indigo-200"
+                >
+                  Try Again
+                </button>
+              )}
+              
+
+
+
               <button
                 onClick={() => setGameState("selecting")}
                 className="w-full bg-white hover:bg-gray-50 text-gray-600 font-bold py-4 rounded-2xl border border-gray-200 transition-all"
               >
-                Back to Levels
+                Back to Levels(レベル選択へ)
               </button>
             </div>
           </div>
