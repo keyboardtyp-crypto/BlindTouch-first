@@ -17,13 +17,13 @@ export default function Home() {
   const [highestLevelId, setHighestLevelId] = useState("1-1");
   const [selectedLevel, setSelectedLevel] = useState<Level | null>(null);
   const [gameState, setGameState] = useState<"selecting" | "playing" | "result">("selecting");
-  
-  // 💡 nextLevelId も保持できるように変更
-  const [lastResult, setLastResult] = useState<{
-    accuracy: number;
-    isSuccess: boolean;
-    nextLevelId?: string | null;
-  } | null>(null);
+  //const [lastResult, setLastResult] = useState<{ accuracy: number; isSuccess: boolean } | null>(null);
+// 💡 nextLevelId も保持できるように変更
+const [lastResult, setLastResult] = useState<{
+  accuracy: number;
+  isSuccess: boolean;
+  nextLevelId?: string | null;
+} | null>(null);
 
   const supabase = createClient();
 
@@ -92,6 +92,7 @@ export default function Home() {
       setAuthError(error.message);
       setLoading(false);
     }
+    // 成功した場合は onAuthStateChange が自動検知して画面が自動でゲーム画面へ切り替わります
   };
 
   // 💡 ログアウト処理
@@ -110,18 +111,84 @@ export default function Home() {
     }
   };
 
-  // 💡 安全に書き込みを行う修正版 handleGameFinish（user_progress + typing_results の両方に保存）
+
+  /*
+  // 💡 データベースに成績・進捗を保存する処理
   const handleGameFinish = async (accuracy: number, isSuccess: boolean) => {
+    setLastResult({ accuracy, isSuccess });
+    setGameState("result");
+
+    if (selectedLevel) {
+      let nextLevelId: string | null = null;
+      if (isSuccess) {
+        const currentIndex = STAGES.findIndex(s => s.id === selectedLevel.id);
+        if (currentIndex < STAGES.length - 1) {
+          nextLevelId = STAGES[currentIndex + 1].id;
+        }
+      }
+      
+      // データベース保存 Server Action
+      const res = await saveTypingResult(selectedLevel.id, accuracy, isSuccess, nextLevelId);
+      if (res.success && isSuccess && nextLevelId) {
+        const [nStage, nStep] = nextLevelId.split("-").map(Number);
+        const [hStage, hStep] = highestLevelId.split("-").map(Number);
+        if (nStage > hStage || (nStage === hStage && nStep > hStep)) {
+          setHighestLevelId(nextLevelId);
+        }
+      }
+    }
+  };
+*/
+// 💡 安全に書き込みを行う修正版 handleGameFinish
+  const handleGameFinish = async (accuracy: number, isSuccess: boolean) => {
+    
+/*
+    setLastResult({ accuracy, isSuccess });
+    setGameState("result");
+//20260802
+*/
     // 現在選択中のレベルを取得
     const currentLevel = selectedLevel;
-
-    // ログイン中の user をそのまま使うので Cookie エラーが起きない！
-    if (!currentLevel || !user) {
-      console.error("❌ selectedLevel か user が null のため保存できません");
+/*
+    if (!currentLevel) {
+      console.error("❌ selectedLevel が null のため保存できません");
       return;
     }
+    */
+// ログイン中の user をそのまま使うので Cookie エラーが起きない！
+  if (!currentLevel || !user) {
+    console.error("❌ selectedLevel かuser が null のため保存できません");
+    return;
+  }
 
-    // 1. 次のレベル ID を計算
+/*
+  //-------------------
+const targetLevel = (isSuccess && nextLevelId) ? nextLevelId : currentLevel.id;
+
+  // ブラウザから直接 Supabase へ保存
+  const { error } = await supabase
+    .from("user_progress")
+    .upsert(
+      {
+        user_id: user.id,
+        highest_level_id: targetLevel,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id" }
+    );
+
+  if (error) {
+    console.error("❌ 保存エラー:", error.message);
+  } else {
+    console.log("🎉 保存成功！");
+    if (isSuccess && nextLevelId) {
+      setHighestLevelId(nextLevelId);
+    }
+  }
+};
+//-------------------------
+*/
+// 1. 次のレベル ID を計算
     let nextLevelId: string | null = null;
     if (isSuccess) {
       const currentIndex = STAGES.findIndex(s => s.id === currentLevel.id);
@@ -134,52 +201,9 @@ export default function Home() {
     setLastResult({ accuracy, isSuccess, nextLevelId });
     setGameState("result");
 
+    // 3. Supabase に保存
     const targetLevel = (isSuccess && nextLevelId) ? nextLevelId : currentLevel.id;
 
-    // 3️⃣-1 最高到達レベルの更新（user_progress テーブル）
-    const { error: progressError } = await supabase
-      .from("user_progress")
-      .upsert(
-        {
-          user_id: user.id,
-          highest_level_id: targetLevel,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "user_id" }
-      );
-
-    if (progressError) {
-      console.error("❌ 進捗更新エラー:", progressError.message);
-    }
-
-    // 3️⃣-2 📊 グラフ用のプレイ履歴を追加保存（typing_results テーブル）
-    const { error: historyError } = await supabase
-      .from("typing_results")
-      .insert({
-        user_id: user.id,
-        level_id: currentLevel.id,
-        accuracy: Math.round(accuracy),
-        is_success: isSuccess,
-      });
-
-    if (historyError) {
-      console.error("❌ 履歴保存エラー:", historyError.message);
-    } else {
-      console.log("🎉 進捗＆プレイ履歴の保存に成功！");
-      if (isSuccess && nextLevelId) {
-        const [nStage, nStep] = nextLevelId.split("-").map(Number);
-        const [hStage, hStep] = highestLevelId.split("-").map(Number);
-
-        if (nStage > hStage || (nStage === hStage && nStep > hStep)) {
-          setHighestLevelId(nextLevelId); // 🎯 画面上の解放ステータスを即更新！
-        }
-      }
-    }
-
-    /*
-    // ----------------------------------------------------
-    // 💡 以前の user_progress のみ保存するコード（2026/08/02 バックアップ）
-    // ----------------------------------------------------
     const { error } = await supabase
       .from("user_progress")
       .upsert(
@@ -191,6 +215,36 @@ export default function Home() {
         { onConflict: "user_id" }
       );
 
+/*
+//20260802
+    let nextLevelId: string | null = null;
+    if (isSuccess) {
+      const currentIndex = STAGES.findIndex(s => s.id === currentLevel.id);
+      if (currentIndex !== -1 && currentIndex < STAGES.length - 1) {
+        nextLevelId = STAGES[currentIndex + 1].id;
+      }
+    }
+
+// 🎯 【新規追加】ブラウザから直接 Supabase へ保存する処理
+    const targetLevel = (isSuccess && nextLevelId) ? nextLevelId : currentLevel.id;
+
+    console.log("📤 [handleGameFinish] Supabase に直接保存を開始します:", {
+      userId: user.id,
+      targetLevel,
+    });
+
+    const { error } = await supabase
+      .from("user_progress")
+      .upsert(
+        {
+          user_id: user.id,
+          highest_level_id: targetLevel,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id" }
+      );
+      //2020802
+*/
     if (error) {
       console.error("❌ 保存エラー:", error.message);
     } else {
@@ -200,28 +254,42 @@ export default function Home() {
         const [hStage, hStep] = highestLevelId.split("-").map(Number);
 
         if (nStage > hStage || (nStage === hStage && nStep > hStep)) {
-          setHighestLevelId(nextLevelId);
+          setHighestLevelId(nextLevelId); // 🎯 画面上の解放ステータスを即更新！
         }
       }
     }
-    // ----------------------------------------------------
-    */
-
     /*
     // ----------------------------------------------------
-    // 💡 以前の Server Action 呼び出しコード（バックアップ）
+    // 💡 以前の Server Action 呼び出しコード（コメントアウトして保存）
     // ----------------------------------------------------
+    
+
+    console.log("📤 [handleGameFinish] saveTypingResult を呼び出します:", {
+      currentLevelId: currentLevel.id,
+      accuracy,
+      isSuccess,
+      nextLevelId,
+    });
+
+    // Server Action の呼び出し
     const res = await saveTypingResult(currentLevel.id, accuracy, isSuccess, nextLevelId);
+
     if (res.success && isSuccess && nextLevelId) {
       const [nStage, nStep] = nextLevelId.split("-").map(Number);
       const [hStage, hStep] = highestLevelId.split("-").map(Number);
+
       if (nStage > hStage || (nStage === hStage && nStep > hStep)) {
-        setHighestLevelId(nextLevelId);
+        setHighestLevelId(nextLevelId); // 🎯 画面上の解放ステータスを即更新！
       }
     }
-    // ----------------------------------------------------
+    //-----------------------------
     */
   };
+
+
+
+
+
 
   if (loading) {
     return (
@@ -346,7 +414,18 @@ export default function Home() {
             </p>
 
             <div className="flex flex-col gap-3">
-              {/* 🎯 クリア成功＆次のステージがある場合は「Next Level」ボタンを表示 */}
+
+               { /*
+              //20260802
+              <button
+                onClick={() => setGameState("playing")}
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-2xl transition-all shadow-lg hover:shadow-indigo-200"
+              >
+                Try Again
+              </button>
+                */
+               }
+{/* 🎯 クリア成功＆次のステージがある場合は「Next Level」ボタンを表示 */}
               {lastResult.isSuccess && lastResult.nextLevelId ? (
                 <button
                   onClick={() => {
@@ -369,6 +448,9 @@ export default function Home() {
                   Try Again
                 </button>
               )}
+              
+
+
 
               <button
                 onClick={() => setGameState("selecting")}
