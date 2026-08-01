@@ -140,11 +140,47 @@ export default function Home() {
 
     // 現在選択中のレベルを取得
     const currentLevel = selectedLevel;
-
+/*
     if (!currentLevel) {
       console.error("❌ selectedLevel が null のため保存できません");
       return;
     }
+    */
+// ログイン中の user をそのまま使うので Cookie エラーが起きない！
+  if (!currentLevel || !user) {
+    console.error("❌ selectedLevel かuser が null のため保存できません");
+    return;
+  }
+
+/*
+  //-------------------
+const targetLevel = (isSuccess && nextLevelId) ? nextLevelId : currentLevel.id;
+
+  // ブラウザから直接 Supabase へ保存
+  const { error } = await supabase
+    .from("user_progress")
+    .upsert(
+      {
+        user_id: user.id,
+        highest_level_id: targetLevel,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id" }
+    );
+
+  if (error) {
+    console.error("❌ 保存エラー:", error.message);
+  } else {
+    console.log("🎉 保存成功！");
+    if (isSuccess && nextLevelId) {
+      setHighestLevelId(nextLevelId);
+    }
+  }
+};
+//-------------------------
+*/
+
+
 
     let nextLevelId: string | null = null;
     if (isSuccess) {
@@ -153,6 +189,44 @@ export default function Home() {
         nextLevelId = STAGES[currentIndex + 1].id;
       }
     }
+
+// 🎯 【新規追加】ブラウザから直接 Supabase へ保存する処理
+    const targetLevel = (isSuccess && nextLevelId) ? nextLevelId : currentLevel.id;
+
+    console.log("📤 [handleGameFinish] Supabase に直接保存を開始します:", {
+      userId: user.id,
+      targetLevel,
+    });
+
+    const { error } = await supabase
+      .from("user_progress")
+      .upsert(
+        {
+          user_id: user.id,
+          highest_level_id: targetLevel,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id" }
+      );
+
+    if (error) {
+      console.error("❌ 保存エラー:", error.message);
+    } else {
+      console.log("🎉 DB直接保存成功！");
+      if (isSuccess && nextLevelId) {
+        const [nStage, nStep] = nextLevelId.split("-").map(Number);
+        const [hStage, hStep] = highestLevelId.split("-").map(Number);
+
+        if (nStage > hStage || (nStage === hStage && nStep > hStep)) {
+          setHighestLevelId(nextLevelId); // 🎯 画面上の解放ステータスを即更新！
+        }
+      }
+    }
+    /*
+    // ----------------------------------------------------
+    // 💡 以前の Server Action 呼び出しコード（コメントアウトして保存）
+    // ----------------------------------------------------
+    
 
     console.log("📤 [handleGameFinish] saveTypingResult を呼び出します:", {
       currentLevelId: currentLevel.id,
@@ -172,6 +246,8 @@ export default function Home() {
         setHighestLevelId(nextLevelId); // 🎯 画面上の解放ステータスを即更新！
       }
     }
+    //-----------------------------
+    */
   };
 
 
