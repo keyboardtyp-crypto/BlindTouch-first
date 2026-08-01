@@ -5,7 +5,8 @@ import { cookies } from 'next/headers'
 type CookieToSet = {
   name: string;
   value: string;
-  options: CookieOptions;
+  //options: CookieOptions;
+  options: Record<string, any>;
 };
 
 
