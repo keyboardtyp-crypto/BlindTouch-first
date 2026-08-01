@@ -1,17 +1,16 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Link from "next/link"; // 💡 追加：Next.js の Link コンポーネント
 import { createClient } from "@/lib/supabase/client";
 import { STAGES, Level } from "@/lib/typing-data";
 import { LevelSelector } from "@/components/LevelSelector";
 import { TypingGame } from "@/components/TypingGame";
 import type { User } from "@supabase/supabase-js";
 
-// 日本時間（JST）生成ヘルパー
+// 💡 日本時間（JST: UTC+9時間）の ISO 文字列を生成するヘルパー関数
 const getJSTDateString = () => {
   const now = new Date();
-  const jstOffset = 9 * 60 * 60 * 1000;
+  const jstOffset = 9 * 60 * 60 * 1000; // 9時間をミリ秒換算
   const jstDate = new Date(now.getTime() + jstOffset);
   return jstDate.toISOString();
 };
@@ -34,6 +33,7 @@ export default function Home() {
 
   const supabase = createClient();
 
+  // 💡 クライアント側で直接 DB から進捗を取得する安全な関数
   const loadUserProgress = async (userId: string) => {
     try {
       const { data, error } = await supabase
@@ -48,12 +48,13 @@ export default function Home() {
       }
 
       if (data && data.highest_level_id) {
+        console.log("🎉 復元された最高到達レベル:", data.highest_level_id);
         setHighestLevelId(data.highest_level_id);
       } else {
         setHighestLevelId("1-1");
       }
     } catch (e) {
-      console.error("進捗のロードエラー:", e);
+      console.error("進捗のロード中に例外が発生しました:", e);
     }
   };
 
@@ -62,6 +63,7 @@ export default function Home() {
       setLoading(false);
     }, 2000);
 
+    // 1. 初回のセッション＆進捗確認
     supabase.auth.getUser().then(async ({ data: { user: currentUser } }) => {
       setUser(currentUser);
       if (currentUser) {
@@ -74,6 +76,7 @@ export default function Home() {
       clearTimeout(timer);
     });
 
+    // 2. 認証状態の変化を監視（ログイン・ログアウト時に即座に反映）
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         const currentUser = session?.user ?? null;
@@ -82,7 +85,7 @@ export default function Home() {
         if (currentUser) {
           await loadUserProgress(currentUser.id);
         } else {
-          setHighestLevelId("1-1");
+          setHighestLevelId("1-1"); // ログアウト時は初期化
         }
         setLoading(false);
         clearTimeout(timer);
@@ -95,6 +98,7 @@ export default function Home() {
     };
   }, []);
 
+  // 💡 ログイン・新規登録処理
   const handleAuthSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setAuthError(null);
@@ -112,11 +116,13 @@ export default function Home() {
       setAuthError(error.message);
       setLoading(false);
     } else if (data.user) {
+      // ログイン成功時に確実に進捗をロード
       await loadUserProgress(data.user.id);
       setLoading(false);
     }
   };
 
+  // 💡 ログアウト処理
   const handleLogout = async () => {
     setLoading(true);
     await supabase.auth.signOut();
@@ -133,11 +139,12 @@ export default function Home() {
     }
   };
 
+  // 💡 ゲーム終了時のデータ保存処理（日本時間付き）
   const handleGameFinish = async (accuracy: number, isSuccess: boolean) => {
     const currentLevel = selectedLevel;
 
     if (!currentLevel || !user) {
-      console.error("❌ selectedLevel か user が null です");
+      console.error("❌ selectedLevel か user が null のため保存できません");
       return;
     }
 
@@ -153,9 +160,10 @@ export default function Home() {
     setGameState("result");
 
     const targetLevel = (isSuccess && nextLevelId) ? nextLevelId : currentLevel.id;
-    const jstNow = getJSTDateString();
+    const jstNow = getJSTDateString(); // 💡 日本時間のタイムスタンプ
 
-    await supabase
+    // 1️⃣ 最高到達レベルの更新（user_progress）
+    const { error: progressError } = await supabase
       .from("user_progress")
       .upsert(
         {
@@ -166,6 +174,11 @@ export default function Home() {
         { onConflict: "user_id" }
       );
 
+    if (progressError) {
+      console.error("❌ 進捗更新エラー:", progressError.message);
+    }
+
+    // 2️⃣ 📊 プレイ履歴の保存（typing_results）
     const { error: historyError } = await supabase
       .from("typing_results")
       .insert({
@@ -173,15 +186,20 @@ export default function Home() {
         level_id: currentLevel.id,
         accuracy: Math.round(accuracy),
         is_success: isSuccess,
-        created_at: jstNow,
+        created_at: jstNow, // 日本時間で保存
       });
 
-    if (!historyError && isSuccess && nextLevelId) {
-      const [nStage, nStep] = nextLevelId.split("-").map(Number);
-      const [hStage, hStep] = highestLevelId.split("-").map(Number);
+    if (historyError) {
+      console.error("❌ 履歴保存エラー:", historyError.message);
+    } else {
+      console.log("🎉 日本時間での保存＆進捗更新に成功！");
+      if (isSuccess && nextLevelId) {
+        const [nStage, nStep] = nextLevelId.split("-").map(Number);
+        const [hStage, hStep] = highestLevelId.split("-").map(Number);
 
-      if (nStage > hStage || (nStage === hStage && nStep > hStep)) {
-        setHighestLevelId(nextLevelId);
+        if (nStage > hStage || (nStage === hStage && nStep > hStep)) {
+          setHighestLevelId(nextLevelId);
+        }
       }
     }
   };
@@ -215,7 +233,7 @@ export default function Home() {
                 type="email"
                 autoComplete="email"
                 required
-                className="appearance-none rounded-xl relative block w-full px-4 py-3 border border-gray-200 text-gray-800 text-sm focus:ring-2 focus:ring-indigo-500"
+                className="appearance-none rounded-xl relative block w-full px-4 py-3 border border-gray-200 placeholder-gray-400 text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
                 placeholder="you@example.com"
               />
             </div>
@@ -224,24 +242,27 @@ export default function Home() {
               <input
                 name="password"
                 type="password"
+                autoComplete={isSignUp ? "new-password" : "current-password"}
                 required
-                className="appearance-none rounded-xl relative block w-full px-4 py-3 border border-gray-200 text-gray-800 text-sm focus:ring-2 focus:ring-indigo-500"
+                className="appearance-none rounded-xl relative block w-full px-4 py-3 border border-gray-200 placeholder-gray-400 text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
                 placeholder="••••••••"
               />
             </div>
 
             {authError && (
-              <div className="text-red-500 text-sm bg-red-50 p-3 rounded-xl text-center">
+              <div className="text-red-500 text-sm bg-red-50 p-3 rounded-xl border border-red-100 text-center">
                 {authError}
               </div>
             )}
 
-            <button
-              type="submit"
-              className="w-full py-3.5 border border-transparent text-sm font-bold rounded-xl text-white bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-100"
-            >
-              {isSignUp ? "新規登録" : "ログイン"}
-            </button>
+            <div>
+              <button
+                type="submit"
+                className="group relative w-full flex justify-center py-3.5 px-4 border border-transparent text-sm font-bold rounded-xl text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors shadow-lg shadow-indigo-100"
+              >
+                {isSignUp ? "新規登録" : "ログイン"}
+              </button>
+            </div>
           </form>
 
           <div className="text-center mt-6">
@@ -249,7 +270,7 @@ export default function Home() {
               onClick={() => { setIsSignUp(!isSignUp); setAuthError(null); }}
               className="text-sm font-medium text-indigo-600 hover:text-indigo-500"
             >
-              {isSignUp ? "ログイン画面へ" : "新規登録画面へ"}
+              {isSignUp ? "すでにアカウントをお持ちですか？ ログイン" : "アカウントをお持ちでないですか？ 新規登録"}
             </button>
           </div>
         </div>
@@ -266,23 +287,12 @@ export default function Home() {
           </h1>
           <p className="text-sm text-gray-500">{user.email}</p>
         </div>
-
-        {/* 🎯 右上のヘッダーボタン群（グラフリンクを追加！） */}
-        <div className="flex gap-3 items-center">
-          <Link
-            href="/stats"
-            className="px-4 py-2 text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition-colors flex items-center gap-1 shadow-sm"
-          >
-            📊 練習記録・グラフ
-          </Link>
-
-          <button
-            onClick={handleLogout}
-            className="px-4 py-2 text-xs font-bold text-gray-400 hover:text-red-500 uppercase tracking-widest transition-colors"
-          >
-            Logout
-          </button>
-        </div>
+        <button
+          onClick={handleLogout}
+          className="px-4 py-2 text-xs font-bold text-gray-400 hover:text-red-500 uppercase tracking-widest transition-colors"
+        >
+          Logout
+        </button>
       </header>
 
       <main className="w-full max-w-4xl flex flex-col items-center">
@@ -328,7 +338,7 @@ export default function Home() {
                   }}
                   className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-2xl transition-all shadow-lg hover:shadow-indigo-200"
                 >
-                  Next Level 🚀
+                  Next Level (次のステージへ) 🚀
                 </button>
               ) : (
                 <button
@@ -339,19 +349,11 @@ export default function Home() {
                 </button>
               )}
 
-              {/* 🎯 結果画面からも直接グラフを見に行けるボタンを追加 */}
-              <Link
-                href="/stats"
-                className="w-full bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-bold py-3.5 rounded-2xl border border-indigo-100 transition-all block text-center"
-              >
-                📊 成長グラフを見る
-              </Link>
-
               <button
                 onClick={() => setGameState("selecting")}
-                className="w-full bg-white hover:bg-gray-50 text-gray-600 font-bold py-3.5 rounded-2xl border border-gray-200 transition-all"
+                className="w-full bg-white hover:bg-gray-50 text-gray-600 font-bold py-4 rounded-2xl border border-gray-200 transition-all"
               >
-                Back to Levels
+                Back to Levels(レベル選択へ)
               </button>
             </div>
           </div>
