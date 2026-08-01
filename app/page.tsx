@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { saveTypingResult, getUserProgress } from "./actions"; // 直接認証を使うため login, signup, logout は不要
+import { saveTypingResult, getUserProgress } from "@/app/actions"; // 直接認証を使うため login, signup, logout は不要
 import { STAGES, Level } from "@/lib/typing-data";
 import { LevelSelector } from "@/components/LevelSelector";
 import { TypingGame } from "@/components/TypingGame";
@@ -105,6 +105,8 @@ export default function Home() {
     }
   };
 
+
+  /*
   // 💡 データベースに成績・進捗を保存する処理
   const handleGameFinish = async (accuracy: number, isSuccess: boolean) => {
     setLastResult({ accuracy, isSuccess });
@@ -130,6 +132,52 @@ export default function Home() {
       }
     }
   };
+*/
+// 💡 安全に書き込みを行う修正版 handleGameFinish
+  const handleGameFinish = async (accuracy: number, isSuccess: boolean) => {
+    setLastResult({ accuracy, isSuccess });
+    setGameState("result");
+
+    // 現在選択中のレベルを取得
+    const currentLevel = selectedLevel;
+
+    if (!currentLevel) {
+      console.error("❌ selectedLevel が null のため保存できません");
+      return;
+    }
+
+    let nextLevelId: string | null = null;
+    if (isSuccess) {
+      const currentIndex = STAGES.findIndex(s => s.id === currentLevel.id);
+      if (currentIndex !== -1 && currentIndex < STAGES.length - 1) {
+        nextLevelId = STAGES[currentIndex + 1].id;
+      }
+    }
+
+    console.log("📤 [handleGameFinish] saveTypingResult を呼び出します:", {
+      currentLevelId: currentLevel.id,
+      accuracy,
+      isSuccess,
+      nextLevelId,
+    });
+
+    // Server Action の呼び出し
+    const res = await saveTypingResult(currentLevel.id, accuracy, isSuccess, nextLevelId);
+
+    if (res.success && isSuccess && nextLevelId) {
+      const [nStage, nStep] = nextLevelId.split("-").map(Number);
+      const [hStage, hStep] = highestLevelId.split("-").map(Number);
+
+      if (nStage > hStage || (nStage === hStage && nStep > hStep)) {
+        setHighestLevelId(nextLevelId); // 🎯 画面上の解放ステータスを即更新！
+      }
+    }
+  };
+
+
+
+
+
 
   if (loading) {
     return (
