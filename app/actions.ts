@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 
-// 💡 ユーザーの最高到達レベルを取得
+// 進捗取得
 export async function getUserProgress(): Promise<string> {
   try {
     const supabase = await createClient();
@@ -10,129 +10,50 @@ export async function getUserProgress(): Promise<string> {
 
     if (!user) return "1-1";
 
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("user_progress")
       .select("highest_level_id")
       .eq("user_id", user.id)
       .maybeSingle();
 
+    if (error) {
+      console.error("❌ [getUserProgress エラー]:", error.message);
+      return "1-1";
+    }
+
     return data?.highest_level_id ?? "1-1";
   } catch (err) {
+    console.error("❌ [getUserProgress 例外]:", err);
     return "1-1";
   }
 }
 
-// 💡 タイピング結果と進捗（highest_level_id）を保存
+// 成績保存
 export async function saveTypingResult(
   levelId: string,
   accuracy: number,
   isSuccess: boolean,
   nextLevelId: string | null
 ) {
+  console.log("🚀 [1] saveTypingResult が呼び出されました！", { levelId, isSuccess, nextLevelId });
+
   try {
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-    if (!user) {
-        console.log("❌ 未ログインのため保存をキャンセルしました");    
-        return { success: false, error: "未ログイン" };
-  }
-
-  /*
-    if (isSuccess && nextLevelId) {
-     // 1. 現在の進捗を取得
-      const { data: currentProgress } = await supabase
-        .from("user_progress")
-        .select("highest_level_id")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      const current = currentProgress?.highest_level_id ?? "1-1";
-      const [cStage, cStep] = current.split("-").map(Number);
-      const [nStage, nStep] = nextLevelId.split("-").map(Number);
-
-      // 新しいステージがこれまでの最高記録より高い場合のみ更新
-      if (nStage > cStage || (nStage === cStage && nStep > cStep)) {
-        await supabase
-          .from("user_progress")
-          .upsert({
-            user_id: user.id,
-            highest_level_id: nextLevelId,
-            updated_at: new Date().toISOString(),
-          });
-      }
+    if (authError || !user) {
+      console.error("❌ [2] ユーザー認証失敗:", authError?.message || "未ログイン");
+      return { success: false, error: "未ログイン状態です" };
     }
 
-    return { success: true };
-  } catch (err) {
-    return { success: false, error: "保存失敗" };
-  }
-}
-  */
+    console.log("👤 [3] ログインユーザーID:", user.id);
 
+    // クリア成功時のみ更新対象とする
+    const targetLevel = (isSuccess && nextLevelId) ? nextLevelId : levelId;
 
-/*本当---
-// クリア成功時のみ進捗を更新
-    if (isSuccess && nextLevelId) {
-      // 1. 現在の進捗を取得
-      const { data: currentProgress } = await supabase
-        .from("user_progress")
-        .select("highest_level_id")
-        .eq("user_id", user.id)
-        .maybeSingle();
+    console.log("💾 [4] Supabase に書き込みを試みます... 対象レベル:", targetLevel);
 
-      const current = currentProgress?.highest_level_id;
-
-      // 2. 既存データが無い（初回）、または新しいレベルの方が高い場合に更新
-      let shouldUpdate = false;
-
-      if (!current) {
-        // データがまだ1件もない場合は無条件で保存！
-        shouldUpdate = true;
-      } else {
-        const [cStage, cStep] = current.split("-").map(Number);
-        const [nStage, nStep] = nextLevelId.split("-").map(Number);
-        if (nStage > cStage || (nStage === cStage && nStep > cStep)) {
-          shouldUpdate = true;
-        }
-      }
-
-      if (shouldUpdate) {
-        const { error: upsertError } = await supabase
-          .from("user_progress")
-          .upsert(
-            {
-              user_id: user.id,
-              highest_level_id: nextLevelId,
-              updated_at: new Date().toISOString(),
-            },
-            { onConflict: "user_id" }
-          );
-
-        if (upsertError) {
-          console.error("❌ DB保存エラー:", upsertError.message);
-          return { success: false, error: upsertError.message };
-        }
-
-        console.log("🎉 進捗を正常に保存しました！ 新到達レベル:", nextLevelId);
-      }
-    }
-
-    return { success: true };
-  } catch (err) {
-    console.error("❌ 保存処理で例外が発生しました:", err);
-    return { success: false, error: "保存失敗" };
-  }
-}
-*/
-
-// 保存するレベルID（nextLevelId が無ければ渡された levelId を使う）
-    const targetLevel = nextLevelId || levelId;
-
-    console.log("🔄 保存処理を開始します... User:", user.id, "TargetLevel:", targetLevel);
-
-    // 2. 無条件で upsert（強行保存）
-    const { data, error } = await supabase
+    const { data, error: dbError } = await supabase
       .from("user_progress")
       .upsert(
         {
@@ -142,17 +63,18 @@ export async function saveTypingResult(
         },
         { onConflict: "user_id" }
       )
-      .select(); // 結果を受け取る
+      .select();
 
-    if (error) {
-      console.error("❌ Supabase DB保存エラー詳細:", error);
-      return { success: false, error: error.message };
+    if (dbError) {
+      console.error("❌ [5] Supabase 書き込みエラー発生！:", dbError.message);
+      console.error("エラーの詳細:", dbError);
+      return { success: false, error: dbError.message };
     }
 
-    console.log("🎉 DB保存成功！ 返却データ:", data);
+    console.log("🎉 [6] 書き込み成功！ 返却データ:", data);
     return { success: true };
-  } catch (err) {
-    console.error("❌ 予期せぬ例外エラー:", err);
-    return { success: false, error: "保存失敗" };
+  } catch (err: any) {
+    console.error("❌ [7] 予期せぬ例外エラーが発生しました:", err);
+    return { success: false, error: err?.message || "例外エラー" };
   }
 }
