@@ -2,11 +2,18 @@
 
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { saveTypingResult, getUserProgress } from "@/app/actions"; // 直接認証を使うため login, signup, logout は不要
 import { STAGES, Level } from "@/lib/typing-data";
 import { LevelSelector } from "@/components/LevelSelector";
 import { TypingGame } from "@/components/TypingGame";
 import type { User } from "@supabase/supabase-js";
+
+// 💡 日本時間（JST: UTC+9時間）の ISO 文字列を生成するヘルパー関数
+const getJSTDateString = () => {
+  const now = new Date();
+  const jstOffset = 9 * 60 * 60 * 1000; // 9時間をミリ秒換算
+  const jstDate = new Date(now.getTime() + jstOffset);
+  return jstDate.toISOString();
+};
 
 export default function Home() {
   const [user, setUser] = useState<User | null>(null);
@@ -18,7 +25,6 @@ export default function Home() {
   const [selectedLevel, setSelectedLevel] = useState<Level | null>(null);
   const [gameState, setGameState] = useState<"selecting" | "playing" | "result">("selecting");
   
-  // 💡 nextLevelId も保持できるように変更
   const [lastResult, setLastResult] = useState<{
     accuracy: number;
     isSuccess: boolean;
@@ -27,41 +33,59 @@ export default function Home() {
 
   const supabase = createClient();
 
+  // 💡 クライアント側で直接 DB から進捗を取得する安全な関数
+  const loadUserProgress = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from("user_progress")
+        .select("highest_level_id")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (error) {
+        console.error("❌ 進捗取得エラー:", error.message);
+        return;
+      }
+
+      if (data && data.highest_level_id) {
+        console.log("🎉 復元された最高到達レベル:", data.highest_level_id);
+        setHighestLevelId(data.highest_level_id);
+      } else {
+        setHighestLevelId("1-1");
+      }
+    } catch (e) {
+      console.error("進捗のロード中に例外が発生しました:", e);
+    }
+  };
+
   useEffect(() => {
-    // 💡 保証用タイマー：2秒後に必ずLoadingを強制解除
     const timer = setTimeout(() => {
       setLoading(false);
     }, 2000);
 
-    // 1. セッション初期確認
-    supabase.auth.getUser().then(({ data: { user: currentUser } }) => {
+    // 1. 初回のセッション＆進捗確認
+    supabase.auth.getUser().then(async ({ data: { user: currentUser } }) => {
       setUser(currentUser);
       if (currentUser) {
-        getUserProgress().then((progress: string | null) => {
-          if (progress) setHighestLevelId(progress);
-        }).finally(() => {
-          setLoading(false);
-          clearTimeout(timer);
-        });
-      } else {
-        setLoading(false);
-        clearTimeout(timer);
+        await loadUserProgress(currentUser.id);
       }
+      setLoading(false);
+      clearTimeout(timer);
     }).catch(() => {
       setLoading(false);
       clearTimeout(timer);
     });
 
-    // 2. 認証状態の変化を監視（直接認証成功時もここで即座に反応）
+    // 2. 認証状態の変化を監視（ログイン・ログアウト時に即座に反映）
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
+      async (_event, session) => {
         const currentUser = session?.user ?? null;
         setUser(currentUser);
 
         if (currentUser) {
-          getUserProgress().then((progress: string | null) => {
-            if (progress) setHighestLevelId(progress);
-          });
+          await loadUserProgress(currentUser.id);
+        } else {
+          setHighestLevelId("1-1"); // ログアウト時は初期化
         }
         setLoading(false);
         clearTimeout(timer);
@@ -74,7 +98,7 @@ export default function Home() {
     };
   }, []);
 
-  // 💡 クライアント側で直接ログイン・新規登録を処理（Cookie損失やエラーを回避）
+  // 💡 ログイン・新規登録処理
   const handleAuthSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setAuthError(null);
@@ -84,12 +108,16 @@ export default function Home() {
     const email = formData.get("email") as string;
     const password = formData.get("password") as string;
 
-    const { error } = isSignUp
+    const { data, error } = isSignUp
       ? await supabase.auth.signUp({ email, password })
       : await supabase.auth.signInWithPassword({ email, password });
 
     if (error) {
       setAuthError(error.message);
+      setLoading(false);
+    } else if (data.user) {
+      // ログイン成功時に確実に進捗をロード
+      await loadUserProgress(data.user.id);
       setLoading(false);
     }
   };
@@ -98,6 +126,7 @@ export default function Home() {
   const handleLogout = async () => {
     setLoading(true);
     await supabase.auth.signOut();
+    setHighestLevelId("1-1");
   };
 
   const handleLevelSelect = (level: Level) => {
@@ -110,18 +139,15 @@ export default function Home() {
     }
   };
 
-  // 💡 安全に書き込みを行う修正版 handleGameFinish（user_progress + typing_results の両方に保存）
+  // 💡 ゲーム終了時のデータ保存処理（日本時間付き）
   const handleGameFinish = async (accuracy: number, isSuccess: boolean) => {
-    // 現在選択中のレベルを取得
     const currentLevel = selectedLevel;
 
-    // ログイン中の user をそのまま使うので Cookie エラーが起きない！
     if (!currentLevel || !user) {
       console.error("❌ selectedLevel か user が null のため保存できません");
       return;
     }
 
-    // 1. 次のレベル ID を計算
     let nextLevelId: string | null = null;
     if (isSuccess) {
       const currentIndex = STAGES.findIndex(s => s.id === currentLevel.id);
@@ -130,20 +156,20 @@ export default function Home() {
       }
     }
 
-    // 2. 結果状態を更新（nextLevelId を含める）
     setLastResult({ accuracy, isSuccess, nextLevelId });
     setGameState("result");
 
     const targetLevel = (isSuccess && nextLevelId) ? nextLevelId : currentLevel.id;
+    const jstNow = getJSTDateString(); // 💡 日本時間のタイムスタンプ
 
-    // 3️⃣-1 最高到達レベルの更新（user_progress テーブル）
+    // 1️⃣ 最高到達レベルの更新（user_progress）
     const { error: progressError } = await supabase
       .from("user_progress")
       .upsert(
         {
           user_id: user.id,
           highest_level_id: targetLevel,
-          updated_at: new Date().toISOString(),
+          updated_at: jstNow,
         },
         { onConflict: "user_id" }
       );
@@ -152,7 +178,7 @@ export default function Home() {
       console.error("❌ 進捗更新エラー:", progressError.message);
     }
 
-    // 3️⃣-2 📊 グラフ用のプレイ履歴を追加保存（typing_results テーブル）
+    // 2️⃣ 📊 プレイ履歴の保存（typing_results）
     const { error: historyError } = await supabase
       .from("typing_results")
       .insert({
@@ -160,41 +186,13 @@ export default function Home() {
         level_id: currentLevel.id,
         accuracy: Math.round(accuracy),
         is_success: isSuccess,
+        created_at: jstNow, // 日本時間で保存
       });
 
     if (historyError) {
       console.error("❌ 履歴保存エラー:", historyError.message);
     } else {
-      console.log("🎉 進捗＆プレイ履歴の保存に成功！");
-      if (isSuccess && nextLevelId) {
-        const [nStage, nStep] = nextLevelId.split("-").map(Number);
-        const [hStage, hStep] = highestLevelId.split("-").map(Number);
-
-        if (nStage > hStage || (nStage === hStage && nStep > hStep)) {
-          setHighestLevelId(nextLevelId); // 🎯 画面上の解放ステータスを即更新！
-        }
-      }
-    }
-
-    /*
-    // ----------------------------------------------------
-    // 💡 以前の user_progress のみ保存するコード（2026/08/02 バックアップ）
-    // ----------------------------------------------------
-    const { error } = await supabase
-      .from("user_progress")
-      .upsert(
-        {
-          user_id: user.id,
-          highest_level_id: targetLevel,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "user_id" }
-      );
-
-    if (error) {
-      console.error("❌ 保存エラー:", error.message);
-    } else {
-      console.log("🎉 DB直接保存成功！");
+      console.log("🎉 日本時間での保存＆進捗更新に成功！");
       if (isSuccess && nextLevelId) {
         const [nStage, nStep] = nextLevelId.split("-").map(Number);
         const [hStage, hStep] = highestLevelId.split("-").map(Number);
@@ -204,23 +202,6 @@ export default function Home() {
         }
       }
     }
-    // ----------------------------------------------------
-    */
-
-    /*
-    // ----------------------------------------------------
-    // 💡 以前の Server Action 呼び出しコード（バックアップ）
-    // ----------------------------------------------------
-    const res = await saveTypingResult(currentLevel.id, accuracy, isSuccess, nextLevelId);
-    if (res.success && isSuccess && nextLevelId) {
-      const [nStage, nStep] = nextLevelId.split("-").map(Number);
-      const [hStage, hStep] = highestLevelId.split("-").map(Number);
-      if (nStage > hStage || (nStage === hStage && nStep > hStep)) {
-        setHighestLevelId(nextLevelId);
-      }
-    }
-    // ----------------------------------------------------
-    */
   };
 
   if (loading) {
@@ -346,7 +327,6 @@ export default function Home() {
             </p>
 
             <div className="flex flex-col gap-3">
-              {/* 🎯 クリア成功＆次のステージがある場合は「Next Level」ボタンを表示 */}
               {lastResult.isSuccess && lastResult.nextLevelId ? (
                 <button
                   onClick={() => {
@@ -361,7 +341,6 @@ export default function Home() {
                   Next Level (次のステージへ) 🚀
                 </button>
               ) : (
-                /* 不合格または最終ステージ時は「Try Again」を表示 */
                 <button
                   onClick={() => setGameState("playing")}
                   className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-2xl transition-all shadow-lg hover:shadow-indigo-200"
