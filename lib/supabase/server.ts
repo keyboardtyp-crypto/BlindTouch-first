@@ -1,6 +1,14 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 
+// クッキー情報の型を定義（暗黙の any を防ぐ）
+type CookieToSet = {
+  name: string;
+  value: string;
+  options: CookieOptions;
+};
+
+
 export async function createClient() {
   const cookieStore = await cookies()
     //const cookieStore = cookies()
@@ -8,6 +16,9 @@ export async function createClient() {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
+
+
+      /*
       cookies: {
         getAll() {
           return cookieStore.getAll()
@@ -38,6 +49,23 @@ console.log('--- setAll CALLED ---', cookiesToSet.length) // 👈 これを追�
           }
         },
       },
+      */
+cookies: {
+        getAll() {
+          return cookieStore.getAll();
+        },
+        setAll(cookiesToSet: CookieToSet[]) {
+          try {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options)
+            );
+          } catch {
+            // Server Component から呼び出された場合は無視
+          }
+        },
+      },
+
+
     }
   )
 }
