@@ -7,6 +7,11 @@ export type Level = {
   homeKey: string | null;
   threshold: number;
   showHighlight: boolean;
+// -------------------------------------------------------------
+  // 【追加】ブラインドモード判定用のフラグ
+  // -------------------------------------------------------------
+  isBlind?: boolean;
+
 };
 
 export const STAGES: Level[] = [
@@ -32,6 +37,42 @@ export const STAGES: Level[] = [
   // Stage 4
   { id: "4-1", stage: 4, step: 1, title: "全キー混合 (ハイライトなし)", keys: "yuhjnmtrgfbvik,edcol.wsxp@;:/\ qaz", homeKey: null, threshold: 80, showHighlight: false },
 ];
+
+// 旧: export const STAGES: Level[] = [ ... ]; （既存のSTAGESはそのまま残します）
+
+// -------------------------------------------------------------
+// 【新規追加】通常とブラインドが交互に進む新しいステージ構成
+// -------------------------------------------------------------
+export const BLIND_STAGES: Level[] = [
+  // Stage 1: 人差し指（通常 ⇄ ブラインド）
+  { id: "1-1", stage: 1, step: 1, title: "右手人差し指練習", keys: "yuhjnm", homeKey: "j", threshold: 90, showHighlight: true, isBlind: false },
+  { id: "1-2", stage: 1, step: 2, title: "右手人差し指練習 (ブラインド)", keys: "yuhjnm", homeKey: "j", threshold: 90, showHighlight: false, isBlind: true },
+  { id: "1-3", stage: 1, step: 3, title: "左手人差し指練習", keys: "trgfbv", homeKey: "f", threshold: 90, showHighlight: true, isBlind: false },
+  { id: "1-4", stage: 1, step: 4, title: "左手人差し指練習 (ブラインド)", keys: "trgfbv", homeKey: "f", threshold: 90, showHighlight: false, isBlind: true },
+
+  // Stage 2: 中指（通常 ⇄ ブラインド）
+  { id: "2-1", stage: 2, step: 1, title: "右手中指練習", keys: "ik,", homeKey: "k", threshold: 90, showHighlight: true, isBlind: false },
+  { id: "2-2", stage: 2, step: 2, title: "右手中指練習 (ブラインド)", keys: "ik,", homeKey: "k", threshold: 90, showHighlight: false, isBlind: true },
+  { id: "2-3", stage: 2, step: 3, title: "左手中指練習", keys: "edc", homeKey: "d", threshold: 90, showHighlight: true, isBlind: false },
+  { id: "2-4", stage: 2, step: 4, title: "左手中指練習 (ブラインド)", keys: "edc", homeKey: "d", threshold: 90, showHighlight: false, isBlind: true },
+
+  // Stage 3: 薬指（通常 ⇄ ブラインド）
+  { id: "3-1", stage: 3, step: 1, title: "右手薬指練習", keys: "ol.", homeKey: "l", threshold: 90, showHighlight: true, isBlind: false },
+  { id: "3-2", stage: 3, step: 2, title: "右手薬指練習 (ブラインド)", keys: "ol.", homeKey: "l", threshold: 90, showHighlight: false, isBlind: true },
+  { id: "3-3", stage: 3, step: 3, title: "左手薬指練習", keys: "wsx", homeKey: "s", threshold: 90, showHighlight: true, isBlind: false },
+  { id: "3-4", stage: 3, step: 4, title: "左手薬指練習 (ブラインド)", keys: "wsx", homeKey: "s", threshold: 90, showHighlight: false, isBlind: true },
+
+  // Stage 4: 小指（通常 ⇄ ブラインド）
+  { id: "4-1", stage: 4, step: 1, title: "右手小指練習", keys: "p@;:/\ ", homeKey: ";", threshold: 90, showHighlight: true, isBlind: false },
+  { id: "4-2", stage: 4, step: 2, title: "右手小指練習 (ブラインド)", keys: "p@;:/\ ", homeKey: ";", threshold: 90, showHighlight: false, isBlind: true },
+  { id: "4-3", stage: 4, step: 3, title: "左手小指練習", keys: "qaz", homeKey: "a", threshold: 90, showHighlight: true, isBlind: false },
+  { id: "4-4", stage: 4, step: 4, title: "左手小指練習 (ブラインド)", keys: "qaz", homeKey: "a", threshold: 90, showHighlight: false, isBlind: true },
+];
+//--------------------------------------------------------------
+
+
+
+
 
 export const KEYBOARD_LAYOUT = [
   ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p", "@"],

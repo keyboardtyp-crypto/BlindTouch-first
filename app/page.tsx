@@ -269,6 +269,7 @@ export default function Home() {
 
         {/* 🎯 右上のヘッダーボタン群（グラフリンクを追加！） */}
         <div className="flex gap-3 items-center">
+         { /*
           <Link
             href="/stats"
             className="px-4 py-2 text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition-colors flex items-center gap-1 shadow-sm"
@@ -282,6 +283,31 @@ export default function Home() {
           >
             Logout
           </button>
+          */}
+  {/* 新規追加: ブラインド練習ページへのリンク */}
+  <Link
+    href="/blind"
+    className="px-4 py-2 text-xs font-bold text-white bg-purple-600 hover:bg-purple-700 rounded-xl transition-colors flex items-center gap-1 shadow-md"
+  >
+    🙈 ブラインド交互モード
+  </Link>
+
+  <Link
+    href="/stats"
+    className="px-4 py-2 text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition-colors flex items-center gap-1 shadow-sm"
+  >
+    📊 練習記録・グラフ
+  </Link>
+
+  <button
+    onClick={handleLogout}
+    className="px-4 py-2 text-xs font-bold text-gray-400 hover:text-red-500 uppercase tracking-widest transition-colors"
+  >
+    Logout
+  </button>
+
+
+
         </div>
       </header>
 
