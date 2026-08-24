@@ -10,17 +10,20 @@ interface TypingGameProps {
   onCancel: () => void;
 }
 
+// 旧: export function TypingGame({ level, onFinish, onCancel }: TypingGameProps) {
 export function BlindTypingGame({ level, onFinish, onCancel }: TypingGameProps) {
   const [targetText, setTargetText] = useState("");
   const [currentIndex, setCurrentIndex] = useState(0);
   const [mistakes, setMistakes] = useState(0);
   const [timeLeft, setTimeLeft] = useState(60);
   const [status, setStatus] = useState<"idle" | "playing" | "finished">("idle");
+
+  // -------------------------------------------------------------
+  // 【新機能】ミス入力時のみキーボードを表示するStateを追加
+  // -------------------------------------------------------------
   const [showKeyboard, setShowKeyboard] = useState(false);
 
-  const containerRef = useRef<HTMLDivElement | null>(null);
-
-  // 最新状態参照用 Ref
+  // 💡 最新の状態を常に保持するための Ref（クロージャ対策）
   const currentIndexRef = useRef(0);
   const mistakesRef = useRef(0);
   const statusRef = useRef(status);
@@ -64,21 +67,17 @@ export function BlindTypingGame({ level, onFinish, onCancel }: TypingGameProps) 
     return text;
   }, [level.keys]);
 
-  // コンポーネントマウント時・クリック時に自動フォーカス
   useEffect(() => {
     setTargetText(generateTargetText());
     setCurrentIndex(0);
     setMistakes(0);
     setTimeLeft(60);
     setStatus("idle");
+    // 新: レベル切り替え時やリセット時はキーボードを非表示に戻す
     setShowKeyboard(false);
-
-    // コンテナに自動でフォーカスを当てる
-    if (containerRef.current) {
-      containerRef.current.focus();
-    }
   }, [generateTargetText]);
 
+  // 💡 セッション終了処理（最新のRefを参照して安全に判定）
   const endSession = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
     setStatus("finished");
@@ -89,10 +88,11 @@ export function BlindTypingGame({ level, onFinish, onCancel }: TypingGameProps) 
     const accuracy = totalAttempts > 0 ? (finalIndex / totalAttempts) * 100 : 0;
     const isSuccess = accuracy >= level.threshold;
 
+    console.log("🎮 ブラインドセッション終了:", { accuracy, isSuccess });
     onFinish(accuracy, isSuccess);
   }, [level.threshold, onFinish]);
 
-  // タイマー
+  // 💡 タイマー処理
   useEffect(() => {
     if (status === "playing") {
       timerRef.current = setInterval(() => {
@@ -110,7 +110,8 @@ export function BlindTypingGame({ level, onFinish, onCancel }: TypingGameProps) 
     };
   }, [status, endSession]);
 
-  // 💡 キー入力判定（window イベントで直接監視）
+  // 💡 キー入力判定
+  /*
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (statusRef.current === "finished") return;
@@ -118,38 +119,40 @@ export function BlindTypingGame({ level, onFinish, onCancel }: TypingGameProps) 
         onCancel();
         return;
       }
-
-      // -------------------------------------------------------------
-      // 【ポイント1】 idle 状態ならどんなキーでもスタート
-      // -------------------------------------------------------------
-      if (statusRef.current === "idle") {
-        setStatus("playing");
-        statusRef.current = "playing";
-        return; // 最初のスタートキー入力では打鍵判定を行わない
-      }
-
-      // 1文字の入力キー以外（ShiftやControlなど）は無視
       if (e.key.length !== 1) return;
 
-      // 打鍵判定
+      if (statusRef.current === "idle") {
+        setStatus("playing");
+      }
+
       const expected = targetText[currentIndexRef.current];
       if (e.key === expected) {
-        playSound(880, 0.1);
+        playSound(880, 0.1); // Success beep
 
         const nextIndex = currentIndexRef.current + 1;
         setCurrentIndex(nextIndex);
+
+        // -------------------------------------------------------------
+        // 【新機能】正解したらキーボードを隠す
+        // -------------------------------------------------------------
         setShowKeyboard(false);
 
+        // 全部打ち終わったら終了
         if (nextIndex >= targetText.length) {
           endSession();
         }
       } else {
+        // ミス音（donaisitan.m4a）
         const audio = new Audio("/donaisitan.m4a");
         audio.volume = 0.5;
         audio.currentTime = 0;
         audio.play().catch((err) => console.log("オーディオ再生エラー:", err));
 
         setMistakes((prev) => prev + 1);
+
+        // -------------------------------------------------------------
+        // 【新機能】間違えた時だけキーボードを表示する
+        // -------------------------------------------------------------
         setShowKeyboard(true);
       }
     };
@@ -157,6 +160,63 @@ export function BlindTypingGame({ level, onFinish, onCancel }: TypingGameProps) 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [targetText, playSound, endSession, onCancel]);
+*/
+// 💡 キー入力判定の修正
+useEffect(() => {
+  const handleKeyDown = (e: KeyboardEvent) => {
+    if (statusRef.current === "finished") return;
+    if (e.key === "Escape") {
+      onCancel();
+      return;
+    }
+
+    // 1文字のキー入力以外（Shift, Alt, Controlなど）は無視
+    if (e.key.length !== 1) return;
+
+    // -------------------------------------------------------------
+    // 【修正ポイント】 idle 状態のときはスタート処理のみ行いリターンする
+    // -------------------------------------------------------------
+    if (statusRef.current === "idle") {
+      setStatus("playing");
+      statusRef.current = "playing"; // 即座にRefも更新
+      
+      // スタートキーを押した時点での文字判定を行う場合:
+      // そのまま下の判定へ流す（またはスタート専用キーにするならここで return）
+    }
+
+    // ゲーム中の打鍵判定
+    const expected = targetText[currentIndexRef.current];
+    if (e.key === expected) {
+      playSound(880, 0.1); // Success beep
+
+      const nextIndex = currentIndexRef.current + 1;
+      setCurrentIndex(nextIndex);
+
+      // 正解したらキーボードを隠す
+      setShowKeyboard(false);
+
+      // 全部打ち終わったら終了
+      if (nextIndex >= targetText.length) {
+        endSession();
+      }
+    } else {
+      // ミス音
+      const audio = new Audio("/donaisitan.m4a");
+      audio.volume = 0.5;
+      audio.currentTime = 0;
+      audio.play().catch((err) => console.log("オーディオ再生エラー:", err));
+
+      setMistakes((prev) => prev + 1);
+
+      // 間違えた時だけキーボードを表示
+      setShowKeyboard(true);
+    }
+  };
+
+  window.addEventListener("keydown", handleKeyDown);
+  return () => window.removeEventListener("keydown", handleKeyDown);
+}, [targetText, playSound, endSession, onCancel]);
+
 
   const accuracy =
     currentIndex + mistakes > 0
@@ -164,12 +224,7 @@ export function BlindTypingGame({ level, onFinish, onCancel }: TypingGameProps) 
       : 100;
 
   return (
-    <div 
-      ref={containerRef}
-      tabIndex={0}
-      onClick={() => containerRef.current?.focus()}
-      className="flex flex-col items-center gap-8 w-full max-w-4xl outline-none"
-    >
+    <div className="flex flex-col items-center gap-8 w-full max-w-4xl">
       <div className="flex justify-between w-full px-4 items-center">
         <div className="text-left">
           <h2 className="text-xl font-bold text-gray-800">{level.title} (ブラインドモード)</h2>
@@ -221,19 +276,27 @@ export function BlindTypingGame({ level, onFinish, onCancel }: TypingGameProps) 
           })}
         </div>
 
-        {/* スタート画面のオーバーレイ */}
         {status === "idle" && (
-          <div 
-            className="absolute inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center rounded-2xl cursor-pointer"
-            onClick={() => setStatus("playing")}
-          >
+          <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center rounded-2xl">
             <p className="text-xl font-medium text-blue-600 animate-bounce">
-              Press any key (or Click here) to start!
+              Press any key to start!
             </p>
           </div>
         )}
       </div>
 
+      {/* ------------------------------------------------------------- */}
+      {/* 【変更箇所】キーボード表示の制御 */}
+      {/* ------------------------------------------------------------- */}
+      {/* 旧:
+      <Keyboard
+        targetKey={targetText[currentIndex]}
+        highlightTarget={level.showHighlight}
+        homeKey={level.homeKey}
+      />
+      */}
+
+      {/* 新: showKeyboard が true（ミスした時）のみ表示する */}
       {showKeyboard ? (
         <div className="flex flex-col items-center gap-2 animate-fade-in">
           <p className="text-xs font-bold text-red-500 bg-red-50 px-3 py-1 rounded-full border border-red-200">

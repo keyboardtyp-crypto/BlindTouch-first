@@ -151,7 +151,7 @@ export default function BlindPracticePage() {
         {/* -------------------------------------------------------------
             【切り替え処理】isBlind の値によって呼び出すコンポーネントを切り替える
            ------------------------------------------------------------- */}
-        {gameState === "playing" && selectedLevel && (
+        {/*{gameState === "playing" && selectedLevel && (
           selectedLevel.isBlind ? (
             <BlindTypingGame
               level={selectedLevel}
@@ -166,7 +166,25 @@ export default function BlindPracticePage() {
             />
           )
         )}
-
+        */}
+                {gameState === "playing" && selectedLevel && (
+  selectedLevel.isBlind ? (
+    <BlindTypingGame
+      key={selectedLevel.id}
+      level={selectedLevel}
+      onFinish={handleGameFinish}
+      onCancel={() => setGameState("selecting")}
+    />
+  ) : (
+    <TypingGame
+      key={selectedLevel.id}
+      level={selectedLevel}
+      onFinish={handleGameFinish}
+      onCancel={() => setGameState("selecting")}
+    />
+  )
+)}
+  
         {gameState === "result" && lastResult && selectedLevel && (
           <div className="max-w-md w-full bg-white rounded-3xl shadow-xl p-10 text-center animate-in fade-in zoom-in duration-300">
             <h2 className="text-2xl font-bold text-gray-800 mb-2">Result</h2>
