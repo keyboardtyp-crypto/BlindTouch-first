@@ -111,6 +111,7 @@ export function BlindTypingGame({ level, onFinish, onCancel }: TypingGameProps) 
   }, [status, endSession]);
 
   // 💡 キー入力判定
+  /*
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (statusRef.current === "finished") return;
@@ -159,6 +160,63 @@ export function BlindTypingGame({ level, onFinish, onCancel }: TypingGameProps) 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [targetText, playSound, endSession, onCancel]);
+*/
+// 💡 キー入力判定の修正
+useEffect(() => {
+  const handleKeyDown = (e: KeyboardEvent) => {
+    if (statusRef.current === "finished") return;
+    if (e.key === "Escape") {
+      onCancel();
+      return;
+    }
+
+    // 1文字のキー入力以外（Shift, Alt, Controlなど）は無視
+    if (e.key.length !== 1) return;
+
+    // -------------------------------------------------------------
+    // 【修正ポイント】 idle 状態のときはスタート処理のみ行いリターンする
+    // -------------------------------------------------------------
+    if (statusRef.current === "idle") {
+      setStatus("playing");
+      statusRef.current = "playing"; // 即座にRefも更新
+      
+      // スタートキーを押した時点での文字判定を行う場合:
+      // そのまま下の判定へ流す（またはスタート専用キーにするならここで return）
+    }
+
+    // ゲーム中の打鍵判定
+    const expected = targetText[currentIndexRef.current];
+    if (e.key === expected) {
+      playSound(880, 0.1); // Success beep
+
+      const nextIndex = currentIndexRef.current + 1;
+      setCurrentIndex(nextIndex);
+
+      // 正解したらキーボードを隠す
+      setShowKeyboard(false);
+
+      // 全部打ち終わったら終了
+      if (nextIndex >= targetText.length) {
+        endSession();
+      }
+    } else {
+      // ミス音
+      const audio = new Audio("/donaisitan.m4a");
+      audio.volume = 0.5;
+      audio.currentTime = 0;
+      audio.play().catch((err) => console.log("オーディオ再生エラー:", err));
+
+      setMistakes((prev) => prev + 1);
+
+      // 間違えた時だけキーボードを表示
+      setShowKeyboard(true);
+    }
+  };
+
+  window.addEventListener("keydown", handleKeyDown);
+  return () => window.removeEventListener("keydown", handleKeyDown);
+}, [targetText, playSound, endSession, onCancel]);
+
 
   const accuracy =
     currentIndex + mistakes > 0
