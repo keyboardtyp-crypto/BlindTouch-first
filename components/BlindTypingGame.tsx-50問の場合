@@ -28,11 +28,10 @@ export function BlindTypingGame({ level, onFinish, onCancel }: TypingGameProps) 
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // 💡 幼児・低学年向けに問題数を 50文字 -> 30文字 へ変更
   const generateTargetText = useCallback(() => {
     const chars = level.keys.split("");
     let text = "";
-    for (let i = 0; i < 30; i++) {
+    for (let i = 0; i < 50; i++) {
       text += chars[Math.floor(Math.random() * chars.length)];
     }
     return text;
@@ -42,7 +41,7 @@ export function BlindTypingGame({ level, onFinish, onCancel }: TypingGameProps) 
     setTargetText(generateTargetText());
   }, [generateTargetText]);
 
-  // 💡 終了処理（最低8割＝30文字中24文字以上の入力が必要）
+  // 💡 終了処理（最低8割＝40文字以上の入力が必要）
   const endSession = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
     setStatus("finished");
@@ -50,7 +49,7 @@ export function BlindTypingGame({ level, onFinish, onCancel }: TypingGameProps) 
     const totalAttempts = currentIndexRef.current + mistakesRef.current;
     const accuracy = totalAttempts > 0 ? (currentIndexRef.current / totalAttempts) * 100 : 0;
     
-    // 全体長（30文字）の80%（24文字）以上進んでいるか判定
+    // 全体長（50文字）の80%（40文字）以上進んでいるか判定
     const minRequiredChars = Math.ceil(targetText.length * 0.8);
     const reachedMinProgress = currentIndexRef.current >= minRequiredChars;
 
@@ -101,7 +100,7 @@ export function BlindTypingGame({ level, onFinish, onCancel }: TypingGameProps) 
         setCurrentIndex(nextIndex);
         setShowKeyboard(false);
 
-        // 30文字すべて打ち切ったらその場で終了
+        // 50文字すべて打ち切ったらその場で終了
         if (nextIndex >= targetText.length) {
           endSession();
         }
@@ -125,7 +124,7 @@ export function BlindTypingGame({ level, onFinish, onCancel }: TypingGameProps) 
       ? Math.round((currentIndex / (currentIndex + mistakes)) * 100)
       : 100;
 
-  // 8割の必要文字数計算（30文字の場合は 24文字）
+  // 8割の必要文字数計算
   const minRequiredChars = Math.ceil(targetText.length * 0.8);
 
   return (
