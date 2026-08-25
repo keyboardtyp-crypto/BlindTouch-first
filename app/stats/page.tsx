@@ -33,7 +33,6 @@ export default function StatsPage() {
     setMounted(true);
 
     const fetchHistory = async () => {
-      // ログインユーザーの確認
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -43,9 +42,9 @@ export default function StatsPage() {
         return;
       }
 
-      // 1. practice_history からユーザーの履歴を取得
+      // 💡 テーブル名を `typing_results` に変更
       const { data: history, error } = await supabase
-        .from("practice_history")
+        .from("typing_results")
         .select("*")
         .eq("user_id", user.id)
         .order("created_at", { ascending: true });
@@ -55,7 +54,7 @@ export default function StatsPage() {
         return;
       }
 
-      // 2. STAGES と BLIND_STAGES からレベル名を検索して付与
+      // STAGES と BLIND_STAGES からレベル名をマッピング
       const allStages = [...STAGES, ...BLIND_STAGES];
       const formatted = history.map((item: any) => {
         const levelObj = allStages.find((s) => s.id === item.level_id);
@@ -120,6 +119,7 @@ export default function StatsPage() {
                   <XAxis dataKey="formattedDate" tick={{ fontSize: 11, fill: "#888888" }} />
                   <YAxis domain={[0, 100]} unit="%" tick={{ fontSize: 11, fill: "#888888" }} />
 
+                  {/* ホバー時に「レベル名」「日時」「正確性」を表示 */}
                   <Tooltip
                     content={({ active, payload }) => {
                       if (active && payload && payload.length) {
@@ -152,7 +152,7 @@ export default function StatsPage() {
               </ResponsiveContainer>
             </div>
 
-            {/* 📋 レベル別・日付別の詳細履歴リスト */}
+            {/* 📋 詳細履歴テーブル */}
             <div className="mt-4">
               <h3 className="text-sm font-bold text-gray-700 mb-3">直近の練習履歴一覧</h3>
               <div className="border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
