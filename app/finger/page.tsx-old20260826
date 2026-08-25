@@ -45,22 +45,18 @@ export default function FingerPracticePage() {
   const [gameState, setGameState] = useState<"selecting" | "playing" | "result">("selecting");
   const [lastAccuracy, setLastAccuracy] = useState(0);
 
-  // モード別ポイント & 合計ポイント
-  const [fingerPoints, setFingerPoints] = useState(0);
-  const [blindPoints, setBlindPoints] = useState(0);
+  // ポイント・祝賀演出の管理
+  const [points, setPoints] = useState(0);
   const [showCelebration, setShowCelebration] = useState(false);
-
-  const totalPoints = fingerPoints + blindPoints;
 
   const supabase = createClient();
 
   useEffect(() => {
-    // 各モードのポイントを取得
-    const savedFingerPoints = localStorage.getItem("finger_practice_points");
-    const savedBlindPoints = localStorage.getItem("blind_practice_points");
-
-    if (savedFingerPoints) setFingerPoints(parseInt(savedFingerPoints, 10));
-    if (savedBlindPoints) setBlindPoints(parseInt(savedBlindPoints, 10));
+    // ローカルストレージからポイント復元
+    const savedPoints = localStorage.getItem("finger_practice_points");
+    if (savedPoints) {
+      setPoints(parseInt(savedPoints, 10));
+    }
 
     supabase.auth.getUser().then(async ({ data: { user: currentUser } }) => {
       setUser(currentUser);
@@ -87,20 +83,17 @@ export default function FingerPracticePage() {
     setLastAccuracy(accuracy);
     setGameState("result");
 
-    // 指強化モードのポイント加算
+    // ポイント加算（クリア: 50pt / 練習プレイ: 3pt）
     const addedPoints = isSuccess ? 50 : 3;
-    const newFingerPoints = fingerPoints + addedPoints;
+    const newPoints = points + addedPoints;
 
-    const oldTotal = fingerPoints + blindPoints;
-    const newTotal = newFingerPoints + blindPoints;
-
-    // 💡 合計300ポイント「毎」に到達したか判定
-    const oldMilestone = Math.floor(oldTotal / 300);
-    const newMilestone = Math.floor(newTotal / 300);
+    // 💡 300ポイント「毎」に到達したか判定 (300pt, 600pt, 900pt...)
+    const oldMilestone = Math.floor(points / 300);
+    const newMilestone = Math.floor(newPoints / 300);
     const reached300Multiple = newMilestone > oldMilestone;
 
-    setFingerPoints(newFingerPoints);
-    localStorage.setItem("finger_practice_points", newFingerPoints.toString());
+    setPoints(newPoints);
+    localStorage.setItem("finger_practice_points", newPoints.toString());
 
     if (reached300Multiple) {
       setShowCelebration(true);
@@ -118,7 +111,7 @@ export default function FingerPracticePage() {
       created_at: new Date().toISOString(),
     });
 
-    // 📝 2. ステージクリア時に最高到達レベルを `user_progress_finger` に書き込み
+    // 📝 2. ステージクリア時に最高到達レベルを `user_progress_finger` に書き込み (新規追加/更新)
     if (isSuccess) {
       const currentIdx = FINGER_STAGES.findIndex((s: Level) => s.id === selectedLevel.id);
       if (currentIdx !== -1 && currentIdx < FINGER_STAGES.length - 1) {
@@ -128,6 +121,7 @@ export default function FingerPracticePage() {
         if (currentIdx + 1 > highestIdx) {
           setHighestLevelId(nextLevelId);
 
+          // 💾 user_progress_finger テーブルに書き込み（upsert）
           const { error } = await supabase.from("user_progress_finger").upsert(
             {
               user_id: user.id,
@@ -157,7 +151,7 @@ export default function FingerPracticePage() {
           <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl border-4 border-yellow-400 relative">
             <div className="text-6xl mb-4 animate-bounce">🎊 🎊 🎊</div>
             <h2 className="text-2xl font-black text-yellow-600 mb-2">
-              {Math.floor(totalPoints / 300) * 300}ポイント たまったよ！
+              {Math.floor(points / 300) * 300}ポイント たまったよ！
             </h2>
             <p className="text-gray-600 font-bold mb-6">すごい！どんどんれんしゅうが進んでるね！</p>
             <button
@@ -179,7 +173,7 @@ export default function FingerPracticePage() {
         <div className="flex items-center gap-4">
           <div className="bg-amber-100 border border-amber-300 text-amber-800 px-4 py-2 rounded-2xl font-black text-sm flex items-center gap-1 shadow-sm">
             <span>⭐</span>
-            <span>{totalPoints} pt</span>
+            <span>{points} pt</span>
           </div>
 
           <Link href="/" className="px-4 py-2 text-xs font-bold bg-gray-100 hover:bg-gray-200 rounded-xl">

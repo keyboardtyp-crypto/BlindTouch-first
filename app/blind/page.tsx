@@ -53,9 +53,12 @@ export default function BlindPracticePage() {
   const [selectedLevel, setSelectedLevel] = useState<Level | null>(null);
   const [gameState, setGameState] = useState<"selecting" | "playing" | "result">("selecting");
 
-  // ポイント・祝賀演出の管理
-  const [points, setPoints] = useState(0);
+  // モード別ポイント & 合計ポイント
+  const [fingerPoints, setFingerPoints] = useState(0);
+  const [blindPoints, setBlindPoints] = useState(0);
   const [showCelebration, setShowCelebration] = useState(false);
+
+  const totalPoints = fingerPoints + blindPoints;
 
   const [lastResult, setLastResult] = useState<{
     accuracy: number;
@@ -80,7 +83,6 @@ export default function BlindPracticePage() {
       }
 
       if (data && data.highest_level_id) {
-        // b- がついていない古いデータへの互換性処理
         const validId = data.highest_level_id.startsWith("b-")
           ? data.highest_level_id
           : `b-${data.highest_level_id}`;
@@ -94,11 +96,12 @@ export default function BlindPracticePage() {
   };
 
   useEffect(() => {
-    // ローカルストレージからポイント復元
-    const savedPoints = localStorage.getItem("blind_practice_points");
-    if (savedPoints) {
-      setPoints(parseInt(savedPoints, 10));
-    }
+    // 各モードのポイントを取得
+    const savedFingerPoints = localStorage.getItem("finger_practice_points");
+    const savedBlindPoints = localStorage.getItem("blind_practice_points");
+
+    if (savedFingerPoints) setFingerPoints(parseInt(savedFingerPoints, 10));
+    if (savedBlindPoints) setBlindPoints(parseInt(savedBlindPoints, 10));
 
     supabase.auth.getUser().then(async ({ data: { user: currentUser } }) => {
       setUser(currentUser);
@@ -126,17 +129,20 @@ export default function BlindPracticePage() {
       nextLevelId = BLIND_STAGES[currentIndex + 1].id;
     }
 
-    // ポイント加算（クリア: 50pt / 練習プレイ: 3pt）
+    // Blindモードのポイント加算
     const addedPoints = isSuccess ? 50 : 3;
-    const newPoints = points + addedPoints;
+    const newBlindPoints = blindPoints + addedPoints;
 
-    // 💡 300ポイント「毎」に到達したか判定 (300pt, 600pt, 900pt...)
-    const oldMilestone = Math.floor(points / 300);
-    const newMilestone = Math.floor(newPoints / 300);
+    const oldTotal = fingerPoints + blindPoints;
+    const newTotal = fingerPoints + newBlindPoints;
+
+    // 💡 合計300ポイント「毎」に到達したか判定
+    const oldMilestone = Math.floor(oldTotal / 300);
+    const newMilestone = Math.floor(newTotal / 300);
     const reached300Multiple = newMilestone > oldMilestone;
 
-    setPoints(newPoints);
-    localStorage.setItem("blind_practice_points", newPoints.toString());
+    setBlindPoints(newBlindPoints);
+    localStorage.setItem("blind_practice_points", newBlindPoints.toString());
 
     if (reached300Multiple) {
       setShowCelebration(true);
@@ -199,7 +205,7 @@ export default function BlindPracticePage() {
           <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl border-4 border-yellow-400 relative">
             <div className="text-6xl mb-4 animate-bounce">🎊 🎊 🎊</div>
             <h2 className="text-2xl font-black text-yellow-600 mb-2">
-              {Math.floor(points / 300) * 300}ポイント たまったよ！
+              {Math.floor(totalPoints / 300) * 300}ポイント たまったよ！
             </h2>
             <p className="text-gray-600 font-bold mb-6">すごい！どんどんれんしゅうが進んでるね！</p>
             <button
@@ -223,7 +229,7 @@ export default function BlindPracticePage() {
         <div className="flex gap-4 items-center">
           <div className="bg-amber-100 border border-amber-300 text-amber-800 px-4 py-2 rounded-2xl font-black text-sm flex items-center gap-1 shadow-sm">
             <span>⭐</span>
-            <span>{points} pt</span>
+            <span>{totalPoints} pt</span>
           </div>
 
           <Link
