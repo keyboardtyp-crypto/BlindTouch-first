@@ -9,36 +9,6 @@ import { TypingGame } from "@/components/TypingGame";
 import { BlindTypingGame } from "@/components/BlindTypingGame";
 import type { User } from "@supabase/supabase-js";
 
-// 🔊 ブラウザ標準Web Audio APIでファンファーレ音を再生
-const playCelebrationSound = () => {
-  try {
-    const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-    if (!AudioContext) return;
-    const ctx = new AudioContext();
-
-    const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
-    notes.forEach((freq, idx) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = "triangle";
-      osc.frequency.value = freq;
-
-      const startTime = ctx.currentTime + idx * 0.12;
-      gain.gain.setValueAtTime(0, startTime);
-      gain.gain.linearRampToValueAtTime(0.3, startTime + 0.05);
-      gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.5);
-
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-
-      osc.start(startTime);
-      osc.stop(startTime + 0.5);
-    });
-  } catch (e) {
-    console.error("Audio play error:", e);
-  }
-};
-
 const getJSTDateString = () => {
   const now = new Date();
   const jstOffset = 9 * 60 * 60 * 1000;
@@ -53,14 +23,9 @@ export default function BlindPracticePage() {
   const [selectedLevel, setSelectedLevel] = useState<Level | null>(null);
   const [gameState, setGameState] = useState<"selecting" | "playing" | "result">("selecting");
 
-  // ポイント・祝賀演出の管理
-  const [points, setPoints] = useState(0);
-  const [showCelebration, setShowCelebration] = useState(false);
-
   const [lastResult, setLastResult] = useState<{
     accuracy: number;
     isSuccess: boolean;
-    addedPoints: number;
     nextLevelId?: string | null;
   } | null>(null);
 
@@ -94,12 +59,6 @@ export default function BlindPracticePage() {
   };
 
   useEffect(() => {
-    // ローカルストレージからポイント復元
-    const savedPoints = localStorage.getItem("blind_practice_points");
-    if (savedPoints) {
-      setPoints(parseInt(savedPoints, 10));
-    }
-
     supabase.auth.getUser().then(async ({ data: { user: currentUser } }) => {
       setUser(currentUser);
       if (currentUser) {
@@ -126,26 +85,7 @@ export default function BlindPracticePage() {
       nextLevelId = BLIND_STAGES[currentIndex + 1].id;
     }
 
-    // ポイント加算（クリア: 50pt / 練習プレイ: 3pt）
-    const addedPoints = isSuccess ? 50 : 3;
-    const newPoints = points + addedPoints;
-
-    // 💡 300ポイント「毎」に到達したか判定 (300pt, 600pt, 900pt...)
-    const oldMilestone = Math.floor(points / 300);
-    const newMilestone = Math.floor(newPoints / 300);
-    const reached300Multiple = newMilestone > oldMilestone;
-
-    setPoints(newPoints);
-    localStorage.setItem("blind_practice_points", newPoints.toString());
-
-    if (reached300Multiple) {
-      setShowCelebration(true);
-      playCelebrationSound();
-    } else if (isSuccess) {
-      playCelebrationSound();
-    }
-
-    setLastResult({ accuracy, isSuccess, addedPoints, nextLevelId });
+    setLastResult({ accuracy, isSuccess, nextLevelId });
     setGameState("result");
 
     const jstNow = getJSTDateString();
@@ -192,26 +132,7 @@ export default function BlindPracticePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center py-12 px-4 relative overflow-hidden">
-      {/* 🎊 300ポイントごとの祝賀ポップアップ */}
-      {showCelebration && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl border-4 border-yellow-400 relative">
-            <div className="text-6xl mb-4 animate-bounce">🎊 🎊 🎊</div>
-            <h2 className="text-2xl font-black text-yellow-600 mb-2">
-              {Math.floor(points / 300) * 300}ポイント たまったよ！
-            </h2>
-            <p className="text-gray-600 font-bold mb-6">すごい！どんどんれんしゅうが進んでるね！</p>
-            <button
-              onClick={() => setShowCelebration(false)}
-              className="w-full bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 text-white font-black py-4 rounded-2xl shadow-lg transition-transform active:scale-95 text-lg"
-            >
-              やったー！ 🚀
-            </button>
-          </div>
-        </div>
-      )}
-
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center py-12 px-4">
       <header className="w-full max-w-4xl flex justify-between items-center mb-12">
         <div>
           <h1 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-indigo-600">
@@ -220,12 +141,7 @@ export default function BlindPracticePage() {
           <p className="text-sm text-gray-500">{user?.email}</p>
         </div>
 
-        <div className="flex gap-4 items-center">
-          <div className="bg-amber-100 border border-amber-300 text-amber-800 px-4 py-2 rounded-2xl font-black text-sm flex items-center gap-1 shadow-sm">
-            <span>⭐</span>
-            <span>{points} pt</span>
-          </div>
-
+        <div className="flex gap-3 items-center">
           <Link
             href="/"
             className="px-4 py-2 text-xs font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors"
@@ -262,16 +178,12 @@ export default function BlindPracticePage() {
         )}
 
         {gameState === "result" && lastResult && selectedLevel && (
-          <div className="max-w-md w-full bg-white rounded-3xl shadow-xl p-8 text-center animate-in fade-in zoom-in duration-300">
+          <div className="max-w-md w-full bg-white rounded-3xl shadow-xl p-10 text-center animate-in fade-in zoom-in duration-300">
             <h2 className="text-2xl font-bold text-gray-800 mb-2">Result</h2>
-            <p className="text-gray-500 mb-6">{selectedLevel.title}</p>
+            <p className="text-gray-500 mb-8">{selectedLevel.title}</p>
 
             <div className={`text-6xl font-black mb-4 ${lastResult.isSuccess ? 'text-green-500' : 'text-red-500'}`}>
               {Math.round(lastResult.accuracy)}%
-            </div>
-
-            <div className="bg-amber-50 text-amber-700 rounded-xl p-3 mb-6 text-sm font-bold border border-amber-200">
-              +{lastResult.addedPoints} ポイント ゲット！
             </div>
 
             <div className="flex flex-col gap-3">
