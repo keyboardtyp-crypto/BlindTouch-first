@@ -83,9 +83,9 @@ export default function FingerPracticePage() {
     // 💡 ポイント加算処理（クリア: 50pt / 練習プレイ: 3pt）
     const addedPoints = isSuccess ? 50 : 3;
     const newPoints = points + addedPoints;
-    setPoints(newPoints);
-    localStorage.setItem("finger_practice_points", newPoints.toString());
-
+   // setPoints(newPoints);
+    //localStorage.setItem("finger_practice_points", newPoints.toString());
+/*
     // 💡 300ポイント達成時のクラッカー・サウンド演出
     if (newPoints >= 300 && points < 300) {
       setShowCelebration(true);
@@ -93,6 +93,24 @@ export default function FingerPracticePage() {
     } else if (isSuccess) {
       playCelebrationSound();
     }
+*/
+// 💡 300ポイント「毎」に到達したか判定 (300pt, 600pt, 900pt...)
+    const oldMilestone = Math.floor(points / 300);
+    const newMilestone = Math.floor(newPoints / 300);
+    const reached300Multiple = newMilestone > oldMilestone;
+
+    setPoints(newPoints);
+    localStorage.setItem("finger_practice_points", newPoints.toString());
+
+    // 💡 300ptごとに演出 & ファンファーレ再生
+    if (reached300Multiple) {
+      setShowCelebration(true);
+      playCelebrationSound();
+    } else if (isSuccess) {
+      // 通常クリア時の効果音（必要に応じて設定）
+      playCelebrationSound();
+    }
+
 
     // DBへの成績履歴保存
     await supabase.from("typing_results").insert({
@@ -132,8 +150,9 @@ export default function FingerPracticePage() {
         <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in">
           <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl border-4 border-yellow-400 relative">
             <div className="text-6xl mb-4 animate-bounce">🎊 🎊 🎊</div>
-            <h2 className="text-2xl font-black text-yellow-600 mb-2">300ポイントたまったよ！</h2>
-            <p className="text-gray-600 font-bold mb-6">すごい！まいにちのれんしゅうの成果だね！</p>
+            <h2 className="text-2xl font-black text-yellow-600 mb-2">
+                {Math.floor(points / 300) * 300}ポイントたまったよ！</h2>
+            <p className="text-gray-600 font-bold mb-6">すごい！どんどんれんしゅう進んでるね！</p>
             <button
               onClick={() => setShowCelebration(false)}
               className="w-full bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 text-white font-black py-4 rounded-2xl shadow-lg transition-transform active:scale-95 text-lg"
