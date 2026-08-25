@@ -42,7 +42,7 @@ export default function StatsPage() {
         return;
       }
 
-      // 💡 テーブル名を `typing_results` に変更
+      // Supabaseの `typing_results` テーブルからデータ取得
       const { data: history, error } = await supabase
         .from("typing_results")
         .select("*")
@@ -54,11 +54,27 @@ export default function StatsPage() {
         return;
       }
 
-      // STAGES と BLIND_STAGES からレベル名をマッピング
+      // 全ステージの一覧（STAGES + BLIND_STAGES）を用意
       const allStages = [...STAGES, ...BLIND_STAGES];
+
       const formatted = history.map((item: any) => {
-        const levelObj = allStages.find((s) => s.id === item.level_id);
-        const title = levelObj ? levelObj.title : `Level ${item.level_id}`;
+        const rawId = String(item.level_id || "");
+
+        // 1. 完全一致で検索
+        let levelObj = allStages.find((s) => s.id === rawId);
+
+        // 2. 「b-」の有無を相互補完して検索（DBが"1-1"で配列が"b-1-1"、またはその逆のケース対策）
+        if (!levelObj) {
+          if (rawId.startsWith("b-")) {
+            const strippedId = rawId.replace(/^b-/, "");
+            levelObj = STAGES.find((s) => s.id === strippedId);
+          } else {
+            const prefixedId = `b-${rawId}`;
+            levelObj = BLIND_STAGES.find((s) => s.id === prefixedId);
+          }
+        }
+
+        const title = levelObj ? levelObj.title : `Level ${rawId}`;
 
         const dateObj = new Date(item.created_at);
         const dateStr = `${dateObj.getMonth() + 1}/${dateObj.getDate()} ${String(
@@ -69,7 +85,7 @@ export default function StatsPage() {
           id: item.id || Math.random().toString(),
           created_at: item.created_at,
           accuracy: Number(item.accuracy) || 0,
-          level_id: item.level_id,
+          level_id: rawId,
           level_title: title,
           formattedDate: dateStr,
         };
@@ -119,7 +135,6 @@ export default function StatsPage() {
                   <XAxis dataKey="formattedDate" tick={{ fontSize: 11, fill: "#888888" }} />
                   <YAxis domain={[0, 100]} unit="%" tick={{ fontSize: 11, fill: "#888888" }} />
 
-                  {/* ホバー時に「レベル名」「日時」「正確性」を表示 */}
                   <Tooltip
                     content={({ active, payload }) => {
                       if (active && payload && payload.length) {
