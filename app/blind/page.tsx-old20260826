@@ -88,20 +88,7 @@ export default function BlindPracticePage() {
     const targetLevelId = isSuccess && nextLevelId ? nextLevelId : currentLevel.id;
     const jstNow = getJSTDateString();
 
-    // 💡 1. 練習記録を typing_results テーブルに保存（グラフ・履歴用）
-    const { error: resultError } = await supabase.from("typing_results").insert({
-      user_id: user.id,
-      level_id: currentLevel.id,
-      accuracy: Math.round(accuracy),
-      is_success: isSuccess,
-      created_at: jstNow,
-    });
-
-    if (resultError) {
-      console.error("❌ 履歴保存エラー:", resultError.message);
-    }
-
-    // 💡 2. 進捗状況を user_progress_blind テーブルに更新（ロック解除用）
+    // 💡 配列インデックス（順番）で最高到達地点を正しく比較更新
     const currentHighestIdx = BLIND_STAGES.findIndex((s) => s.id === highestLevelId);
     const targetIdx = BLIND_STAGES.findIndex((s) => s.id === targetLevelId);
 
