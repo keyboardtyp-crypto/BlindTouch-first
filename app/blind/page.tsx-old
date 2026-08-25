@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { BLIND_STAGES, Level } from "@/lib/typing-data";
 import { BlindLevelSelector } from "@/components/BlindLevelSelector";
 import { TypingGame } from "@/components/TypingGame";
-import { BlindTypingGame } from "@/components/BlindTypingGame";
+import { BlindTypingGame } from "@/components/BlindTypingGame"; // ★ 先ほど作成したブラインドコンポーネント
 import type { User } from "@supabase/supabase-js";
 
 const getJSTDateString = () => {
@@ -31,10 +31,13 @@ export default function BlindPracticePage() {
 
   const supabase = createClient();
 
+  // -------------------------------------------------------------
+  // 新しいテーブル `user_progress_blind` から進捗を読み込む
+  // -------------------------------------------------------------
   const loadUserProgress = async (userId: string) => {
     try {
       const { data, error } = await supabase
-        .from("user_progress_blind")
+        .from("user_progress_blind") // ★ 新規テーブルを指定
         .select("highest_level_id")
         .eq("user_id", userId)
         .maybeSingle();
@@ -65,8 +68,7 @@ export default function BlindPracticePage() {
   }, []);
 
   const handleLevelSelect = (level: Level) => {
-    const targetLevel = BLIND_STAGES.find((s) => s.id === level.id) || level;
-    setSelectedLevel(targetLevel);
+    setSelectedLevel(level);
     setGameState("playing");
   };
 
@@ -85,27 +87,29 @@ export default function BlindPracticePage() {
     setLastResult({ accuracy, isSuccess, nextLevelId });
     setGameState("result");
 
-    const targetLevelId = isSuccess && nextLevelId ? nextLevelId : currentLevel.id;
+    const targetLevel = isSuccess && nextLevelId ? nextLevelId : currentLevel.id;
     const jstNow = getJSTDateString();
 
-    // 💡 配列インデックス（順番）で最高到達地点を正しく比較更新
-    const currentHighestIdx = BLIND_STAGES.findIndex((s) => s.id === highestLevelId);
-    const targetIdx = BLIND_STAGES.findIndex((s) => s.id === targetLevelId);
-
-    let newHighestId = highestLevelId;
-    if (targetIdx > currentHighestIdx) {
-      newHighestId = targetLevelId;
-      setHighestLevelId(targetLevelId);
-    }
-
+    // -------------------------------------------------------------
+    // 新しいテーブル `user_progress_blind` へ保存
+    // -------------------------------------------------------------
     await supabase.from("user_progress_blind").upsert(
       {
         user_id: user.id,
-        highest_level_id: newHighestId,
+        highest_level_id: targetLevel,
         updated_at: jstNow,
       },
       { onConflict: "user_id" }
     );
+
+    if (isSuccess && nextLevelId) {
+      const [nStage, nStep] = nextLevelId.split("-").map(Number);
+      const [hStage, hStep] = highestLevelId.split("-").map(Number);
+
+      if (nStage > hStage || (nStage === hStage && nStep > hStep)) {
+        setHighestLevelId(nextLevelId);
+      }
+    }
   };
 
   if (loading) {
@@ -144,24 +148,43 @@ export default function BlindPracticePage() {
           />
         )}
 
-        {gameState === "playing" && selectedLevel && (
+        {/* -------------------------------------------------------------
+            【切り替え処理】isBlind の値によって呼び出すコンポーネントを切り替える
+           ------------------------------------------------------------- */}
+        {/*{gameState === "playing" && selectedLevel && (
           selectedLevel.isBlind ? (
             <BlindTypingGame
-              key={selectedLevel.id}
               level={selectedLevel}
               onFinish={handleGameFinish}
               onCancel={() => setGameState("selecting")}
             />
           ) : (
             <TypingGame
-              key={selectedLevel.id}
               level={selectedLevel}
               onFinish={handleGameFinish}
               onCancel={() => setGameState("selecting")}
             />
           )
         )}
-
+        */}
+                {gameState === "playing" && selectedLevel && (
+  selectedLevel.isBlind ? (
+    <BlindTypingGame
+      key={selectedLevel.id}
+      level={selectedLevel}
+      onFinish={handleGameFinish}
+      onCancel={() => setGameState("selecting")}
+    />
+  ) : (
+    <TypingGame
+      key={selectedLevel.id}
+      level={selectedLevel}
+      onFinish={handleGameFinish}
+      onCancel={() => setGameState("selecting")}
+    />
+  )
+)}
+  
         {gameState === "result" && lastResult && selectedLevel && (
           <div className="max-w-md w-full bg-white rounded-3xl shadow-xl p-10 text-center animate-in fade-in zoom-in duration-300">
             <h2 className="text-2xl font-bold text-gray-800 mb-2">Result</h2>
