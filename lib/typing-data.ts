@@ -151,7 +151,70 @@ export const BLIND_STAGES: Level[] = [
   { id: "b-3-2", stage: 3, step: 2, title: "全キー混合 (ブラインド)", keys: "yuhjnmtrgfbvik,edcol.wsxp@;:/\ qaz", homeKey: null, threshold: 80, showHighlight: false, isBlind: true },
   ];
 
+// 各指強化モード用のステージ定義（全8本の指）
+export const FINGER_STAGES: Level[] = [
+  // ==========================================
+  // 1. 右手人差し指 (j -> u -> h -> m -> n -> y)
+  // ==========================================
+  { id: "f-1-1", stage: 1, step: 1, title: "右手人差し指: Step 1 (j)", keys: "j", homeKey: "j", threshold: 90, showHighlight: false, isBlind: true },
+  { id: "f-1-2", stage: 1, step: 2, title: "右手人差し指: Step 2 (j, u)", keys: "ju", homeKey: "j", threshold: 90, showHighlight: false, isBlind: true },
+  { id: "f-1-3", stage: 1, step: 3, title: "右手人差し指: Step 3 (j, u, h)", keys: "juh", homeKey: "j", threshold: 90, showHighlight: false, isBlind: true },
+  { id: "f-1-4", stage: 1, step: 4, title: "右手人差し指: Step 4 (j, u, h, m)", keys: "juhm", homeKey: "j", threshold: 90, showHighlight: false, isBlind: true },
+  { id: "f-1-5", stage: 1, step: 5, title: "右手人差し指: Step 5 (j, u, h, m, n)", keys: "juhmn", homeKey: "j", threshold: 90, showHighlight: false, isBlind: true },
+  { id: "f-1-6", stage: 1, step: 6, title: "右手人差し指: Step 6 (j, u, h, m, n, y)", keys: "juhmny", homeKey: "j", threshold: 90, showHighlight: false, isBlind: true },
 
+  // ==========================================
+  // 2. 左手人差し指 (f -> r -> g -> v -> b -> t)
+  // ==========================================
+  { id: "f-2-1", stage: 2, step: 1, title: "左手人差し指: Step 1 (f)", keys: "f", homeKey: "f", threshold: 90, showHighlight: false, isBlind: true },
+  { id: "f-2-2", stage: 2, step: 2, title: "左手人差し指: Step 2 (f, r)", keys: "fr", homeKey: "f", threshold: 90, showHighlight: false, isBlind: true },
+  { id: "f-2-3", stage: 2, step: 3, title: "左手人差し指: Step 3 (f, r, g)", keys: "frg", homeKey: "f", threshold: 90, showHighlight: false, isBlind: true },
+  { id: "f-2-4", stage: 2, step: 4, title: "左手人差し指: Step 4 (f, r, g, v)", keys: "frgv", homeKey: "f", threshold: 90, showHighlight: false, isBlind: true },
+  { id: "f-2-5", stage: 2, step: 5, title: "左手人差し指: Step 5 (f, r, g, v, b)", keys: "frgvb", homeKey: "f", threshold: 90, showHighlight: false, isBlind: true },
+  { id: "f-2-6", stage: 2, step: 6, title: "左手人差し指: Step 6 (f, r, g, v, b, t)", keys: "frgvbt", homeKey: "f", threshold: 90, showHighlight: false, isBlind: true },
+
+  // ==========================================
+  // 3. 右手中指 (k -> i -> ,)
+  // ==========================================
+  { id: "f-3-1", stage: 3, step: 1, title: "右手中指: Step 1 (k)", keys: "k", homeKey: "k", threshold: 90, showHighlight: false, isBlind: true },
+  { id: "f-3-2", stage: 3, step: 2, title: "右手中指: Step 2 (k, i)", keys: "ki", homeKey: "k", threshold: 90, showHighlight: false, isBlind: true },
+  { id: "f-3-3", stage: 3, step: 3, title: "右手中指: Step 3 (k, i, ,)", keys: "ki,", homeKey: "k", threshold: 90, showHighlight: false, isBlind: true },
+
+  // ==========================================
+  // 4. 左手中指 (d -> e -> c)
+  // ==========================================
+  { id: "f-4-1", stage: 4, step: 1, title: "左手中指: Step 1 (d)", keys: "d", homeKey: "d", threshold: 90, showHighlight: false, isBlind: true },
+  { id: "f-4-2", stage: 4, step: 2, title: "左手中指: Step 2 (d, e)", keys: "de", homeKey: "d", threshold: 90, showHighlight: false, isBlind: true },
+  { id: "f-4-3", stage: 4, step: 3, title: "左手中指: Step 3 (d, e, c)", keys: "dec", homeKey: "d", threshold: 90, showHighlight: false, isBlind: true },
+
+  // ==========================================
+  // 5. 右手薬指 (l -> o -> .)
+  // ==========================================
+  { id: "f-5-1", stage: 5, step: 1, title: "右手薬指: Step 1 (l)", keys: "l", homeKey: "l", threshold: 90, showHighlight: false, isBlind: true },
+  { id: "f-5-2", stage: 5, step: 2, title: "右手薬指: Step 2 (l, o)", keys: "lo", homeKey: "l", threshold: 90, showHighlight: false, isBlind: true },
+  { id: "f-5-3", stage: 5, step: 3, title: "右手薬指: Step 3 (l, o, .)", keys: "lo.", homeKey: "l", threshold: 90, showHighlight: false, isBlind: true },
+
+  // ==========================================
+  // 6. 左手薬指 (s -> w -> x)
+  // ==========================================
+  { id: "f-6-1", stage: 6, step: 1, title: "左手薬指: Step 1 (s)", keys: "s", homeKey: "s", threshold: 90, showHighlight: false, isBlind: true },
+  { id: "f-6-2", stage: 6, step: 2, title: "左手薬指: Step 2 (s, w)", keys: "sw", homeKey: "s", threshold: 90, showHighlight: false, isBlind: true },
+  { id: "f-6-3", stage: 6, step: 3, title: "左手薬指: Step 3 (s, w, x)", keys: "swx", homeKey: "s", threshold: 90, showHighlight: false, isBlind: true },
+
+  // ==========================================
+  // 7. 右手小指 (; -> p -> /)
+  // ==========================================
+  { id: "f-7-1", stage: 7, step: 1, title: "右手小指: Step 1 (;)", keys: ";", homeKey: ";", threshold: 90, showHighlight: false, isBlind: true },
+  { id: "f-7-2", stage: 7, step: 2, title: "右手小指: Step 2 (;, p)", keys: ";p", homeKey: ";", threshold: 90, showHighlight: false, isBlind: true },
+  { id: "f-7-3", stage: 7, step: 3, title: "右手小指: Step 3 (;, p, /)", keys: ";p/", homeKey: ";", threshold: 90, showHighlight: false, isBlind: true },
+
+  // ==========================================
+  // 8. 左手小指 (a -> q -> z)
+  // ==========================================
+  { id: "f-8-1", stage: 8, step: 1, title: "左手小指: Step 1 (a)", keys: "a", homeKey: "a", threshold: 90, showHighlight: false, isBlind: true },
+  { id: "f-8-2", stage: 8, step: 2, title: "左手小指: Step 2 (a, q)", keys: "aq", homeKey: "a", threshold: 90, showHighlight: false, isBlind: true },
+  { id: "f-8-3", stage: 8, step: 3, title: "左手小指: Step 3 (a, q, z)", keys: "aqz", homeKey: "a", threshold: 90, showHighlight: false, isBlind: true },
+];
 
 
 export const KEYBOARD_LAYOUT = [

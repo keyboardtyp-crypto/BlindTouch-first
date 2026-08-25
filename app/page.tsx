@@ -284,6 +284,14 @@ export default function Home() {
             Logout
           </button>
           */}
+
+          <Link
+  href="/finger"
+  className="px-4 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition-colors shadow-md"
+>
+  👈 各指強化モード
+</Link>
+
   {/* 新規追加: ブラインド練習ページへのリンク */}
   <Link
     href="/blind"
