@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Level } from "../lib/typing-data";
+import { Level } from "@/lib/typing-data";
 import { Keyboard } from "./Keyboard";
 
 interface TypingGameProps {
@@ -10,20 +10,14 @@ interface TypingGameProps {
   onCancel: () => void;
 }
 
-// 旧: export function TypingGame({ level, onFinish, onCancel }: TypingGameProps) {
 export function BlindTypingGame({ level, onFinish, onCancel }: TypingGameProps) {
   const [targetText, setTargetText] = useState("");
   const [currentIndex, setCurrentIndex] = useState(0);
   const [mistakes, setMistakes] = useState(0);
   const [timeLeft, setTimeLeft] = useState(60);
   const [status, setStatus] = useState<"idle" | "playing" | "finished">("idle");
-
-  // -------------------------------------------------------------
-  // 【新機能】ミス入力時のみキーボードを表示するStateを追加
-  // -------------------------------------------------------------
   const [showKeyboard, setShowKeyboard] = useState(false);
 
-  // 💡 最新の状態を常に保持するための Ref（クロージャ対策）
   const currentIndexRef = useRef(0);
   const mistakesRef = useRef(0);
   const statusRef = useRef(status);
@@ -33,30 +27,6 @@ export function BlindTypingGame({ level, onFinish, onCancel }: TypingGameProps) 
   statusRef.current = status;
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-
-  const playSound = useCallback((frequency: number, duration: number) => {
-    if (!audioContextRef.current) {
-      audioContextRef.current = new (
-        window.AudioContext ||
-        (window as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext!
-      )();
-    }
-    const ctx = audioContextRef.current;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-
-    osc.type = "sine";
-    osc.frequency.setValueAtTime(frequency, ctx.currentTime);
-    gain.gain.setValueAtTime(0.1, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + duration);
-
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-
-    osc.start();
-    osc.stop(ctx.currentTime + duration);
-  }, []);
 
   const generateTargetText = useCallback(() => {
     const chars = level.keys.split("");
@@ -69,30 +39,19 @@ export function BlindTypingGame({ level, onFinish, onCancel }: TypingGameProps) 
 
   useEffect(() => {
     setTargetText(generateTargetText());
-    setCurrentIndex(0);
-    setMistakes(0);
-    setTimeLeft(60);
-    setStatus("idle");
-    // 新: レベル切り替え時やリセット時はキーボードを非表示に戻す
-    setShowKeyboard(false);
   }, [generateTargetText]);
 
-  // 💡 セッション終了処理（最新のRefを参照して安全に判定）
   const endSession = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
     setStatus("finished");
 
-    const finalIndex = currentIndexRef.current;
-    const finalMistakes = mistakesRef.current;
-    const totalAttempts = finalIndex + finalMistakes;
-    const accuracy = totalAttempts > 0 ? (finalIndex / totalAttempts) * 100 : 0;
+    const totalAttempts = currentIndexRef.current + mistakesRef.current;
+    const accuracy = totalAttempts > 0 ? (currentIndexRef.current / totalAttempts) * 100 : 0;
     const isSuccess = accuracy >= level.threshold;
 
-    console.log("🎮 ブラインドセッション終了:", { accuracy, isSuccess });
     onFinish(accuracy, isSuccess);
   }, [level.threshold, onFinish]);
 
-  // 💡 タイマー処理
   useEffect(() => {
     if (status === "playing") {
       timerRef.current = setInterval(() => {
@@ -110,8 +69,6 @@ export function BlindTypingGame({ level, onFinish, onCancel }: TypingGameProps) 
     };
   }, [status, endSession]);
 
-  // 💡 キー入力判定
-  /*
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (statusRef.current === "finished") return;
@@ -119,104 +76,43 @@ export function BlindTypingGame({ level, onFinish, onCancel }: TypingGameProps) 
         onCancel();
         return;
       }
-      if (e.key.length !== 1) return;
 
+      // -------------------------------------------------------------
+      // 💡 修正1: Space または Enter でスタート（打鍵ミス判定に巻き込まない）
+      // -------------------------------------------------------------
       if (statusRef.current === "idle") {
-        setStatus("playing");
+        if (e.key === " " || e.key === "Enter") {
+          e.preventDefault();
+          setStatus("playing");
+        }
+        return;
       }
+
+      if (e.key.length !== 1) return;
 
       const expected = targetText[currentIndexRef.current];
       if (e.key === expected) {
-        playSound(880, 0.1); // Success beep
-
         const nextIndex = currentIndexRef.current + 1;
         setCurrentIndex(nextIndex);
-
-        // -------------------------------------------------------------
-        // 【新機能】正解したらキーボードを隠す
-        // -------------------------------------------------------------
         setShowKeyboard(false);
 
-        // 全部打ち終わったら終了
         if (nextIndex >= targetText.length) {
           endSession();
         }
       } else {
-        // ミス音（donaisitan.m4a）
         const audio = new Audio("/donaisitan.m4a");
         audio.volume = 0.5;
         audio.currentTime = 0;
-        audio.play().catch((err) => console.log("オーディオ再生エラー:", err));
+        audio.play().catch(() => {});
 
         setMistakes((prev) => prev + 1);
-
-        // -------------------------------------------------------------
-        // 【新機能】間違えた時だけキーボードを表示する
-        // -------------------------------------------------------------
         setShowKeyboard(true);
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [targetText, playSound, endSession, onCancel]);
-*/
-// 💡 キー入力判定の修正
-useEffect(() => {
-  const handleKeyDown = (e: KeyboardEvent) => {
-    if (statusRef.current === "finished") return;
-    if (e.key === "Escape") {
-      onCancel();
-      return;
-    }
-
-    // 1文字のキー入力以外（Shift, Alt, Controlなど）は無視
-    if (e.key.length !== 1) return;
-
-    // -------------------------------------------------------------
-    // 【修正ポイント】 idle 状態のときはスタート処理のみ行いリターンする
-    // -------------------------------------------------------------
-    if (statusRef.current === "idle") {
-      setStatus("playing");
-      statusRef.current = "playing"; // 即座にRefも更新
-      
-      // スタートキーを押した時点での文字判定を行う場合:
-      // そのまま下の判定へ流す（またはスタート専用キーにするならここで return）
-    }
-
-    // ゲーム中の打鍵判定
-    const expected = targetText[currentIndexRef.current];
-    if (e.key === expected) {
-      playSound(880, 0.1); // Success beep
-
-      const nextIndex = currentIndexRef.current + 1;
-      setCurrentIndex(nextIndex);
-
-      // 正解したらキーボードを隠す
-      setShowKeyboard(false);
-
-      // 全部打ち終わったら終了
-      if (nextIndex >= targetText.length) {
-        endSession();
-      }
-    } else {
-      // ミス音
-      const audio = new Audio("/donaisitan.m4a");
-      audio.volume = 0.5;
-      audio.currentTime = 0;
-      audio.play().catch((err) => console.log("オーディオ再生エラー:", err));
-
-      setMistakes((prev) => prev + 1);
-
-      // 間違えた時だけキーボードを表示
-      setShowKeyboard(true);
-    }
-  };
-
-  window.addEventListener("keydown", handleKeyDown);
-  return () => window.removeEventListener("keydown", handleKeyDown);
-}, [targetText, playSound, endSession, onCancel]);
-
+  }, [targetText, endSession, onCancel]);
 
   const accuracy =
     currentIndex + mistakes > 0
@@ -227,17 +123,13 @@ useEffect(() => {
     <div className="flex flex-col items-center gap-8 w-full max-w-4xl">
       <div className="flex justify-between w-full px-4 items-center">
         <div className="text-left">
-          <h2 className="text-xl font-bold text-gray-800">{level.title} (ブラインドモード)</h2>
+          <h2 className="text-xl font-bold text-gray-800">{level.title}</h2>
           <p className="text-sm text-gray-500">Threshold: {level.threshold}%</p>
         </div>
         <div className="flex gap-8 items-center">
           <div className="text-center">
             <p className="text-xs font-bold text-gray-400 uppercase">Time</p>
-            <p
-              className={`text-2xl font-mono font-bold ${
-                timeLeft < 10 ? "text-red-500" : "text-gray-700"
-              }`}
-            >
+            <p className={`text-2xl font-mono font-bold ${timeLeft < 10 ? "text-red-500" : "text-gray-700"}`}>
               {timeLeft}s
             </p>
           </div>
@@ -249,54 +141,36 @@ useEffect(() => {
       </div>
 
       <div className="w-full p-8 bg-white rounded-2xl shadow-xl border border-gray-100 min-h-[140px] flex items-center justify-center relative">
+        {/* 文字列を常に表示 */}
         <div className="flex flex-wrap justify-center items-center gap-1.5 text-3xl font-mono leading-relaxed break-all max-w-full">
           {targetText.split("").map((char, index) => {
             if (index < currentIndex) {
-              return (
-                <span key={index} className="text-green-500 opacity-60">
-                  {char === " " ? "␣" : char}
-                </span>
-              );
+              return <span key={index} className="text-green-500 opacity-60">{char === " " ? "␣" : char}</span>;
             }
             if (index === currentIndex) {
               return (
-                <span
-                  key={index}
-                  className="bg-blue-600 text-white font-bold rounded px-2 py-0.5 shadow-md animate-pulse"
-                >
+                <span key={index} className="bg-blue-600 text-white font-bold rounded px-2 py-0.5 shadow-md animate-pulse">
                   {char === " " ? "␣" : char}
                 </span>
               );
             }
-            return (
-              <span key={index} className="text-gray-300">
-                {char === " " ? "␣" : char}
-              </span>
-            );
+            return <span key={index} className="text-gray-300">{char === " " ? "␣" : char}</span>;
           })}
         </div>
 
+        {/* ------------------------------------------------------------- */}
+        {/* 💡 修正2: 画面下部に小さく指示を表示（背景を透過させ文字を隠さない） */}
+        {/* ------------------------------------------------------------- */}
         {status === "idle" && (
-          <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center rounded-2xl">
-            <p className="text-xl font-medium text-blue-600 animate-bounce">
-              Press any key to start!
-            </p>
+          <div 
+            onClick={() => setStatus("playing")}
+            className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-blue-50 border border-blue-200 text-blue-600 text-xs font-bold px-4 py-1.5 rounded-full shadow-sm cursor-pointer animate-bounce"
+          >
+            Press Space / Enter (or Click here) to start!
           </div>
         )}
       </div>
 
-      {/* ------------------------------------------------------------- */}
-      {/* 【変更箇所】キーボード表示の制御 */}
-      {/* ------------------------------------------------------------- */}
-      {/* 旧:
-      <Keyboard
-        targetKey={targetText[currentIndex]}
-        highlightTarget={level.showHighlight}
-        homeKey={level.homeKey}
-      />
-      */}
-
-      {/* 新: showKeyboard が true（ミスした時）のみ表示する */}
       {showKeyboard ? (
         <div className="flex flex-col items-center gap-2 animate-fade-in">
           <p className="text-xs font-bold text-red-500 bg-red-50 px-3 py-1 rounded-full border border-red-200">
@@ -316,10 +190,7 @@ useEffect(() => {
         </div>
       )}
 
-      <button
-        onClick={onCancel}
-        className="text-gray-400 hover:text-gray-600 text-sm font-medium transition-colors"
-      >
+      <button onClick={onCancel} className="text-gray-400 hover:text-gray-600 text-sm font-medium transition-colors">
         Exit Practice (Esc)
       </button>
     </div>
