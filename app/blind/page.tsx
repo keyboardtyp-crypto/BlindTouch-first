@@ -42,7 +42,6 @@ export default function StatsPage() {
         return;
       }
 
-      // テーブル名を `typing_results` に指定してデータを取得
       const { data: history, error } = await supabase
         .from("typing_results")
         .select("*")
@@ -54,20 +53,14 @@ export default function StatsPage() {
         return;
       }
 
-      // STAGES と BLIND_STAGES からレベル名を正しく判定してマッピング
+      // 💡 STAGES と BLIND_STAGES の両方から探す処理に修正
       const formatted = history.map((item: any) => {
-        let levelObj = null;
+        // 1. まず BLIND_STAGES から検索
+        let levelObj = BLIND_STAGES.find((s) => s.id === item.level_id);
 
-        // "b-" から始まるレベルIDは BLIND_STAGES から検索
-        if (typeof item.level_id === "string" && item.level_id.startsWith("b-")) {
-          levelObj = BLIND_STAGES.find((s) => s.id === item.level_id);
-        } else {
-          levelObj = STAGES.find((s) => s.id === item.level_id);
-        }
-
-        // 該当が見つからなかった場合のフォールバック（全ステージ検索）
+        // 2. なければ STAGES から検索
         if (!levelObj) {
-          levelObj = [...STAGES, ...BLIND_STAGES].find((s) => s.id === item.level_id);
+          levelObj = STAGES.find((s) => s.id === item.level_id);
         }
 
         const title = levelObj ? levelObj.title : `Level ${item.level_id}`;
@@ -131,7 +124,6 @@ export default function StatsPage() {
                   <XAxis dataKey="formattedDate" tick={{ fontSize: 11, fill: "#888888" }} />
                   <YAxis domain={[0, 100]} unit="%" tick={{ fontSize: 11, fill: "#888888" }} />
 
-                  {/* ホバー時に「レベル名」「日時」「正確性」を表示 */}
                   <Tooltip
                     content={({ active, payload }) => {
                       if (active && payload && payload.length) {
