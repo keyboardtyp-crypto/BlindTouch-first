@@ -41,23 +41,16 @@ export function BlindTypingGame({ level, onFinish, onCancel }: TypingGameProps) 
     setTargetText(generateTargetText());
   }, [generateTargetText]);
 
-  // 💡 終了処理（最低8割＝40文字以上の入力が必要）
   const endSession = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
     setStatus("finished");
 
     const totalAttempts = currentIndexRef.current + mistakesRef.current;
     const accuracy = totalAttempts > 0 ? (currentIndexRef.current / totalAttempts) * 100 : 0;
-    
-    // 全体長（50文字）の80%（40文字）以上進んでいるか判定
-    const minRequiredChars = Math.ceil(targetText.length * 0.8);
-    const reachedMinProgress = currentIndexRef.current >= minRequiredChars;
-
-    // 正解率閾値 ＆ 8割以上の進捗の両方を満たした場合のみ成功
-    const isSuccess = accuracy >= level.threshold && reachedMinProgress;
+    const isSuccess = accuracy >= level.threshold;
 
     onFinish(accuracy, isSuccess);
-  }, [level.threshold, targetText.length, onFinish]);
+  }, [level.threshold, onFinish]);
 
   useEffect(() => {
     if (status === "playing") {
@@ -84,6 +77,9 @@ export function BlindTypingGame({ level, onFinish, onCancel }: TypingGameProps) 
         return;
       }
 
+      // -------------------------------------------------------------
+      // 💡 修正1: Space または Enter でスタート（打鍵ミス判定に巻き込まない）
+      // -------------------------------------------------------------
       if (statusRef.current === "idle") {
         if (e.key === " " || e.key === "Enter") {
           e.preventDefault();
@@ -100,7 +96,6 @@ export function BlindTypingGame({ level, onFinish, onCancel }: TypingGameProps) 
         setCurrentIndex(nextIndex);
         setShowKeyboard(false);
 
-        // 50文字すべて打ち切ったらその場で終了
         if (nextIndex >= targetText.length) {
           endSession();
         }
@@ -124,25 +119,14 @@ export function BlindTypingGame({ level, onFinish, onCancel }: TypingGameProps) 
       ? Math.round((currentIndex / (currentIndex + mistakes)) * 100)
       : 100;
 
-  // 8割の必要文字数計算
-  const minRequiredChars = Math.ceil(targetText.length * 0.8);
-
   return (
     <div className="flex flex-col items-center gap-8 w-full max-w-4xl">
       <div className="flex justify-between w-full px-4 items-center">
         <div className="text-left">
           <h2 className="text-xl font-bold text-gray-800">{level.title}</h2>
-          <p className="text-sm text-gray-500">
-            Threshold: {level.threshold}% / 進捗目標: {minRequiredChars}文字以上
-          </p>
+          <p className="text-sm text-gray-500">Threshold: {level.threshold}%</p>
         </div>
         <div className="flex gap-8 items-center">
-          <div className="text-center">
-            <p className="text-xs font-bold text-gray-400 uppercase">Progress</p>
-            <p className={`text-2xl font-mono font-bold ${currentIndex >= minRequiredChars ? "text-green-600" : "text-gray-700"}`}>
-              {currentIndex} / {targetText.length}
-            </p>
-          </div>
           <div className="text-center">
             <p className="text-xs font-bold text-gray-400 uppercase">Time</p>
             <p className={`text-2xl font-mono font-bold ${timeLeft < 10 ? "text-red-500" : "text-gray-700"}`}>
@@ -157,6 +141,7 @@ export function BlindTypingGame({ level, onFinish, onCancel }: TypingGameProps) 
       </div>
 
       <div className="w-full p-8 bg-white rounded-2xl shadow-xl border border-gray-100 min-h-[140px] flex items-center justify-center relative">
+        {/* 文字列を常に表示 */}
         <div className="flex flex-wrap justify-center items-center gap-1.5 text-3xl font-mono leading-relaxed break-all max-w-full">
           {targetText.split("").map((char, index) => {
             if (index < currentIndex) {
@@ -173,6 +158,9 @@ export function BlindTypingGame({ level, onFinish, onCancel }: TypingGameProps) 
           })}
         </div>
 
+        {/* ------------------------------------------------------------- */}
+        {/* 💡 修正2: 画面下部に小さく指示を表示（背景を透過させ文字を隠さない） */}
+        {/* ------------------------------------------------------------- */}
         {status === "idle" && (
           <div 
             onClick={() => setStatus("playing")}

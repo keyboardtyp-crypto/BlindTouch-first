@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Level } from "@/lib/typing-data";
+import { Level } from "../lib/typing-data";
 import { Keyboard } from "./Keyboard";
 
 interface TypingGameProps {
@@ -17,6 +17,7 @@ export function TypingGame({ level, onFinish, onCancel }: TypingGameProps) {
   const [timeLeft, setTimeLeft] = useState(60);
   const [status, setStatus] = useState<"idle" | "playing" | "finished">("idle");
 
+  // 💡 最新の状態を常に保持するための Ref（クロージャ対策）
   const currentIndexRef = useRef(0);
   const mistakesRef = useRef(0);
   const statusRef = useRef(status);
@@ -26,6 +27,30 @@ export function TypingGame({ level, onFinish, onCancel }: TypingGameProps) {
   statusRef.current = status;
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+
+  const playSound = useCallback((frequency: number, duration: number) => {
+    if (!audioContextRef.current) {
+      audioContextRef.current = new (
+        window.AudioContext ||
+        (window as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext!
+      )();
+    }
+    const ctx = audioContextRef.current;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(frequency, ctx.currentTime);
+    gain.gain.setValueAtTime(0.1, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + duration);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start();
+    osc.stop(ctx.currentTime + duration);
+  }, []);
 
   const generateTargetText = useCallback(() => {
     const chars = level.keys.split("");
@@ -38,26 +63,28 @@ export function TypingGame({ level, onFinish, onCancel }: TypingGameProps) {
 
   useEffect(() => {
     setTargetText(generateTargetText());
+    setCurrentIndex(0);
+    setMistakes(0);
+    setTimeLeft(60);
+    setStatus("idle");
   }, [generateTargetText]);
 
-  // 💡 終了判定（正解率の閾値 ＋ 最低8割（40文字）の入力達成が必要）
+  // 💡 セッション終了処理（最新のRefを参照して安全に判定）
   const endSession = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
     setStatus("finished");
 
-    const totalAttempts = currentIndexRef.current + mistakesRef.current;
-    const accuracy = totalAttempts > 0 ? (currentIndexRef.current / totalAttempts) * 100 : 0;
+    const finalIndex = currentIndexRef.current;
+    const finalMistakes = mistakesRef.current;
+    const totalAttempts = finalIndex + finalMistakes;
+    const accuracy = totalAttempts > 0 ? (finalIndex / totalAttempts) * 100 : 0;
+    const isSuccess = accuracy >= level.threshold;
 
-    // 80%（40文字）以上打ち切れているか検証
-    const minRequiredChars = Math.ceil(targetText.length * 0.8);
-    const reachedMinProgress = currentIndexRef.current >= minRequiredChars;
-
-    // 正解率閾値かつ8割以上達成で成功判定
-    const isSuccess = accuracy >= level.threshold && reachedMinProgress;
-
+    console.log("🎮 セッション終了:", { accuracy, isSuccess });
     onFinish(accuracy, isSuccess);
-  }, [level.threshold, targetText.length, onFinish]);
+  }, [level.threshold, onFinish]);
 
+  // 💡 タイマー処理（useEffectの依存関係を減らして安全化）
   useEffect(() => {
     if (status === "playing") {
       timerRef.current = setInterval(() => {
@@ -75,6 +102,7 @@ export function TypingGame({ level, onFinish, onCancel }: TypingGameProps) {
     };
   }, [status, endSession]);
 
+  // 💡 キー入力判定
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (statusRef.current === "finished") return;
@@ -82,31 +110,29 @@ export function TypingGame({ level, onFinish, onCancel }: TypingGameProps) {
         onCancel();
         return;
       }
+      if (e.key.length !== 1) return;
 
       if (statusRef.current === "idle") {
-        if (e.key === " " || e.key === "Enter") {
-          e.preventDefault();
-          setStatus("playing");
-        }
-        return;
+        setStatus("playing");
       }
-
-      if (e.key.length !== 1) return;
 
       const expected = targetText[currentIndexRef.current];
       if (e.key === expected) {
+        playSound(880, 0.1); // Success beep
+
         const nextIndex = currentIndexRef.current + 1;
         setCurrentIndex(nextIndex);
 
-        // 50文字全て打ち切ればその場で即時終了
+        // 全部打ち終わったら終了
         if (nextIndex >= targetText.length) {
           endSession();
         }
       } else {
+        // ミス音（donaisitan.m4a）
         const audio = new Audio("/donaisitan.m4a");
         audio.volume = 0.5;
         audio.currentTime = 0;
-        audio.play().catch(() => {});
+        audio.play().catch((err) => console.log("オーディオ再生エラー:", err));
 
         setMistakes((prev) => prev + 1);
       }
@@ -114,34 +140,28 @@ export function TypingGame({ level, onFinish, onCancel }: TypingGameProps) {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [targetText, endSession, onCancel]);
+  }, [targetText, playSound, endSession, onCancel]);
 
   const accuracy =
     currentIndex + mistakes > 0
       ? Math.round((currentIndex / (currentIndex + mistakes)) * 100)
       : 100;
 
-  const minRequiredChars = Math.ceil(targetText.length * 0.8);
-
   return (
     <div className="flex flex-col items-center gap-8 w-full max-w-4xl">
       <div className="flex justify-between w-full px-4 items-center">
         <div className="text-left">
           <h2 className="text-xl font-bold text-gray-800">{level.title}</h2>
-          <p className="text-sm text-gray-500">
-            Threshold: {level.threshold}% / 進捗目標: {minRequiredChars}文字以上
-          </p>
+          <p className="text-sm text-gray-500">Threshold: {level.threshold}%</p>
         </div>
         <div className="flex gap-8 items-center">
           <div className="text-center">
-            <p className="text-xs font-bold text-gray-400 uppercase">Progress</p>
-            <p className={`text-2xl font-mono font-bold ${currentIndex >= minRequiredChars ? "text-green-600" : "text-gray-700"}`}>
-              {currentIndex} / {targetText.length}
-            </p>
-          </div>
-          <div className="text-center">
             <p className="text-xs font-bold text-gray-400 uppercase">Time</p>
-            <p className={`text-2xl font-mono font-bold ${timeLeft < 10 ? "text-red-500" : "text-gray-700"}`}>
+            <p
+              className={`text-2xl font-mono font-bold ${
+                timeLeft < 10 ? "text-red-500" : "text-gray-700"
+              }`}
+            >
               {timeLeft}s
             </p>
           </div>
@@ -153,28 +173,60 @@ export function TypingGame({ level, onFinish, onCancel }: TypingGameProps) {
       </div>
 
       <div className="w-full p-8 bg-white rounded-2xl shadow-xl border border-gray-100 min-h-[140px] flex items-center justify-center relative">
+        {/* ---------------------------------------------------- */}
+        {/* 💡 旧コード (10文字制限 & 1行固定のため右に見切れてしまっていた) */}
+        {/* ---------------------------------------------------- */}
+        {/*
+        <div className="text-4xl font-mono tracking-[0.2em] whitespace-pre-wrap text-center">
+          <span className="text-green-500 opacity-50">
+            {targetText.slice(0, currentIndex)}
+          </span>
+          <span className="bg-blue-100 border-b-4 border-blue-600 px-1">
+            {targetText[currentIndex]}
+          </span>
+          <span className="text-gray-300">
+            {targetText.slice(currentIndex + 1, currentIndex + 10)}
+          </span>
+        </div>
+        */}
+        {/* ---------------------------------------------------- */}
+
+        {/* 🎯 新コード: 全文字を表示し、折り返し (flex-wrap & break-all) を有効化 */}
         <div className="flex flex-wrap justify-center items-center gap-1.5 text-3xl font-mono leading-relaxed break-all max-w-full">
           {targetText.split("").map((char, index) => {
             if (index < currentIndex) {
-              return <span key={index} className="text-green-500 opacity-60">{char === " " ? "␣" : char}</span>;
-            }
-            if (index === currentIndex) {
+              // 1. すでに入力成功した文字
               return (
-                <span key={index} className="bg-blue-600 text-white font-bold rounded px-2 py-0.5 shadow-md animate-pulse">
+                <span key={index} className="text-green-500 opacity-60">
                   {char === " " ? "␣" : char}
                 </span>
               );
             }
-            return <span key={index} className="text-gray-300">{char === " " ? "␣" : char}</span>;
+            if (index === currentIndex) {
+              // 2. 今打つべきターゲットの文字（青背景ハイライト＆点滅）
+              return (
+                <span
+                  key={index}
+                  className="bg-blue-600 text-white font-bold rounded px-2 py-0.5 shadow-md animate-pulse"
+                >
+                  {char === " " ? "␣" : char}
+                </span>
+              );
+            }
+            // 3. まだ入力していないこれからの文字
+            return (
+              <span key={index} className="text-gray-300">
+                {char === " " ? "␣" : char}
+              </span>
+            );
           })}
         </div>
 
         {status === "idle" && (
-          <div 
-            onClick={() => setStatus("playing")}
-            className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-blue-50 border border-blue-200 text-blue-600 text-xs font-bold px-4 py-1.5 rounded-full shadow-sm cursor-pointer animate-bounce"
-          >
-            Press Space / Enter (or Click here) to start!
+          <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center rounded-2xl">
+            <p className="text-xl font-medium text-blue-600 animate-bounce">
+              Press any key to start!
+            </p>
           </div>
         )}
       </div>
@@ -185,7 +237,10 @@ export function TypingGame({ level, onFinish, onCancel }: TypingGameProps) {
         homeKey={level.homeKey}
       />
 
-      <button onClick={onCancel} className="text-gray-400 hover:text-gray-600 text-sm font-medium transition-colors">
+      <button
+        onClick={onCancel}
+        className="text-gray-400 hover:text-gray-600 text-sm font-medium transition-colors"
+      >
         Exit Practice (Esc)
       </button>
     </div>
