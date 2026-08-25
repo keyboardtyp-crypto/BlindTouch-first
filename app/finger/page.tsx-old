@@ -7,7 +7,7 @@ import { FINGER_STAGES, Level } from "@/lib/typing-data";
 import { BlindTypingGame } from "@/components/BlindTypingGame";
 import type { User } from "@supabase/supabase-js";
 
-// 🔊 ブラウザ標準Web Audio APIでファンファーレ音を再生
+// 🔊 ブラウザ標準Web Audio APIでクラッカー/ファンファーレ音を再生する関数
 const playCelebrationSound = () => {
   try {
     const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
@@ -45,14 +45,14 @@ export default function FingerPracticePage() {
   const [gameState, setGameState] = useState<"selecting" | "playing" | "result">("selecting");
   const [lastAccuracy, setLastAccuracy] = useState(0);
 
-  // ポイント・祝賀演出の管理
+  // 🪙 ポイント管理
   const [points, setPoints] = useState(0);
   const [showCelebration, setShowCelebration] = useState(false);
 
   const supabase = createClient();
 
   useEffect(() => {
-    // ローカルストレージからポイント復元
+    // ローカルストレージから保存されたポイントを復元
     const savedPoints = localStorage.getItem("finger_practice_points");
     if (savedPoints) {
       setPoints(parseInt(savedPoints, 10));
@@ -61,16 +61,13 @@ export default function FingerPracticePage() {
     supabase.auth.getUser().then(async ({ data: { user: currentUser } }) => {
       setUser(currentUser);
       if (currentUser) {
-        // 📥 Supabase から進行状況を取得
-        const { data, error } = await supabase
+        const { data } = await supabase
           .from("user_progress_finger")
           .select("highest_level_id")
           .eq("user_id", currentUser.id)
           .maybeSingle();
 
-        if (error) {
-          console.error("Error fetching progress:", error);
-        } else if (data?.highest_level_id) {
+        if (data?.highest_level_id) {
           setHighestLevelId(data.highest_level_id);
         }
       }
@@ -83,11 +80,21 @@ export default function FingerPracticePage() {
     setLastAccuracy(accuracy);
     setGameState("result");
 
-    // ポイント加算（クリア: 50pt / 練習プレイ: 3pt）
+    // 💡 ポイント加算処理（クリア: 50pt / 練習プレイ: 3pt）
     const addedPoints = isSuccess ? 50 : 3;
     const newPoints = points + addedPoints;
-
-    // 💡 300ポイント「毎」に到達したか判定 (300pt, 600pt, 900pt...)
+   // setPoints(newPoints);
+    //localStorage.setItem("finger_practice_points", newPoints.toString());
+/*
+    // 💡 300ポイント達成時のクラッカー・サウンド演出
+    if (newPoints >= 300 && points < 300) {
+      setShowCelebration(true);
+      playCelebrationSound();
+    } else if (isSuccess) {
+      playCelebrationSound();
+    }
+*/
+// 💡 300ポイント「毎」に到達したか判定 (300pt, 600pt, 900pt...)
     const oldMilestone = Math.floor(points / 300);
     const newMilestone = Math.floor(newPoints / 300);
     const reached300Multiple = newMilestone > oldMilestone;
@@ -95,14 +102,17 @@ export default function FingerPracticePage() {
     setPoints(newPoints);
     localStorage.setItem("finger_practice_points", newPoints.toString());
 
+    // 💡 300ptごとに演出 & ファンファーレ再生
     if (reached300Multiple) {
       setShowCelebration(true);
       playCelebrationSound();
     } else if (isSuccess) {
+      // 通常クリア時の効果音（必要に応じて設定）
       playCelebrationSound();
     }
 
-    // 📝 1. タイピング結果ログを書き込み
+
+    // DBへの成績履歴保存
     await supabase.from("typing_results").insert({
       user_id: user.id,
       level_id: selectedLevel.id,
@@ -111,7 +121,7 @@ export default function FingerPracticePage() {
       created_at: new Date().toISOString(),
     });
 
-    // 📝 2. ステージクリア時に最高到達レベルを `user_progress_finger` に書き込み (新規追加/更新)
+    // 進捗更新
     if (isSuccess) {
       const currentIdx = FINGER_STAGES.findIndex((s: Level) => s.id === selectedLevel.id);
       if (currentIdx !== -1 && currentIdx < FINGER_STAGES.length - 1) {
@@ -120,20 +130,10 @@ export default function FingerPracticePage() {
 
         if (currentIdx + 1 > highestIdx) {
           setHighestLevelId(nextLevelId);
-
-          // 💾 user_progress_finger テーブルに書き込み（upsert）
-          const { error } = await supabase.from("user_progress_finger").upsert(
-            {
-              user_id: user.id,
-              highest_level_id: nextLevelId,
-              updated_at: new Date().toISOString(),
-            },
+          await supabase.from("user_progress_finger").upsert(
+            { user_id: user.id, highest_level_id: nextLevelId, updated_at: new Date().toISOString() },
             { onConflict: "user_id" }
           );
-
-          if (error) {
-            console.error("Error updating user_progress_finger:", error);
-          }
         }
       }
     }
@@ -145,15 +145,14 @@ export default function FingerPracticePage() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center py-12 px-4 relative overflow-hidden">
-      {/* 🎊 300ポイントごとの祝賀ポップアップ */}
+      {/* 🎉 300ポイント達成のくす玉・クラッカーポップアップ */}
       {showCelebration && (
         <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in">
           <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl border-4 border-yellow-400 relative">
             <div className="text-6xl mb-4 animate-bounce">🎊 🎊 🎊</div>
             <h2 className="text-2xl font-black text-yellow-600 mb-2">
-              {Math.floor(points / 300) * 300}ポイント たまったよ！
-            </h2>
-            <p className="text-gray-600 font-bold mb-6">すごい！どんどんれんしゅうが進んでるね！</p>
+                {Math.floor(points / 300) * 300}ポイントたまったよ！</h2>
+            <p className="text-gray-600 font-bold mb-6">すごい！どんどんれんしゅう進んでるね！</p>
             <button
               onClick={() => setShowCelebration(false)}
               className="w-full bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 text-white font-black py-4 rounded-2xl shadow-lg transition-transform active:scale-95 text-lg"
@@ -171,6 +170,7 @@ export default function FingerPracticePage() {
         </div>
 
         <div className="flex items-center gap-4">
+          {/* 🪙 ポイント表示バッジ */}
           <div className="bg-amber-100 border border-amber-300 text-amber-800 px-4 py-2 rounded-2xl font-black text-sm flex items-center gap-1 shadow-sm">
             <span>⭐</span>
             <span>{points} pt</span>
@@ -223,6 +223,7 @@ export default function FingerPracticePage() {
             <h2 className="text-2xl font-bold mb-2 text-gray-800">Result</h2>
             <p className="text-5xl font-black text-emerald-500 mb-4">{Math.round(lastAccuracy)}%</p>
 
+            {/* 獲得ポイントの表示 */}
             <div className="bg-amber-50 text-amber-700 rounded-xl p-3 mb-6 text-sm font-bold border border-amber-200">
               +{lastAccuracy >= (selectedLevel?.threshold || 90) ? 50 : 3} ポイント ゲット！
             </div>
