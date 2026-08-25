@@ -16,8 +16,9 @@ export async function middleware(request: NextRequest) {
         getAll() {
           return request.cookies.getAll();
         },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) =>
+        // 💡 cookiesToSet に any 型エラーが出ないよう型（または暗黙エラー回避）を指定
+        setAll(cookiesToSet: Array<{ name: string; value: string; options?: any }>) {
+          cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value)
           );
           response = NextResponse.next({
@@ -31,7 +32,6 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // Supabaseのセッション更新処理のみ行う（リダイレクトは行わない）
   await supabase.auth.getUser();
 
   return response;
