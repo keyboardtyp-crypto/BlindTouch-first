@@ -1,222 +1,198 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { BLIND_STAGES, Level } from "@/lib/typing-data";
-import { BlindLevelSelector } from "@/components/BlindLevelSelector";
-import { TypingGame } from "@/components/TypingGame";
-import { BlindTypingGame } from "@/components/BlindTypingGame";
-import type { User } from "@supabase/supabase-js";
+import { STAGES, BLIND_STAGES } from "@/lib/typing-data";
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+} from "recharts";
 
-const getJSTDateString = () => {
-  const now = new Date();
-  const jstOffset = 9 * 60 * 60 * 1000;
-  const jstDate = new Date(now.getTime() + jstOffset);
-  return jstDate.toISOString();
+type HistoryRecord = {
+  id: string;
+  created_at: string;
+  accuracy: number;
+  level_id: string;
+  level_title: string;
+  formattedDate: string;
 };
 
-export default function BlindPracticePage() {
-  const [user, setUser] = useState<User | null>(null);
+export default function StatsPage() {
+  const [data, setData] = useState<HistoryRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  const [highestLevelId, setHighestLevelId] = useState("1-1");
-  const [selectedLevel, setSelectedLevel] = useState<Level | null>(null);
-  const [gameState, setGameState] = useState<"selecting" | "playing" | "result">("selecting");
-
-  const [lastResult, setLastResult] = useState<{
-    accuracy: number;
-    isSuccess: boolean;
-    nextLevelId?: string | null;
-  } | null>(null);
-
+  const [mounted, setMounted] = useState(false);
   const supabase = createClient();
 
-  const loadUserProgress = async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from("user_progress_blind")
-        .select("highest_level_id")
-        .eq("user_id", userId)
-        .maybeSingle();
+  useEffect(() => {
+    setMounted(true);
 
-      if (error) {
-        console.error("❌ 進捗取得エラー:", error.message);
+    const fetchHistory = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        setLoading(false);
         return;
       }
 
-      if (data && data.highest_level_id) {
-        setHighestLevelId(data.highest_level_id);
-      } else {
-        setHighestLevelId("1-1");
-      }
-    } catch (e) {
-      console.error("進捗のロードエラー:", e);
-    }
-  };
+      // テーブル名を `typing_results` に指定してデータを取得
+      const { data: history, error } = await supabase
+        .from("typing_results")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: true });
 
-  useEffect(() => {
-    supabase.auth.getUser().then(async ({ data: { user: currentUser } }) => {
-      setUser(currentUser);
-      if (currentUser) {
-        await loadUserProgress(currentUser.id);
+      if (error || !history || history.length === 0) {
+        setLoading(false);
+        return;
       }
+
+      // STAGES と BLIND_STAGES からレベル名を正しく判定してマッピング
+      const formatted = history.map((item: any) => {
+        let levelObj = null;
+
+        // "b-" から始まるレベルIDは BLIND_STAGES から検索
+        if (typeof item.level_id === "string" && item.level_id.startsWith("b-")) {
+          levelObj = BLIND_STAGES.find((s) => s.id === item.level_id);
+        } else {
+          levelObj = STAGES.find((s) => s.id === item.level_id);
+        }
+
+        // 該当が見つからなかった場合のフォールバック（全ステージ検索）
+        if (!levelObj) {
+          levelObj = [...STAGES, ...BLIND_STAGES].find((s) => s.id === item.level_id);
+        }
+
+        const title = levelObj ? levelObj.title : `Level ${item.level_id}`;
+
+        const dateObj = new Date(item.created_at);
+        const dateStr = `${dateObj.getMonth() + 1}/${dateObj.getDate()} ${String(
+          dateObj.getHours()
+        ).padStart(2, "0")}:${String(dateObj.getMinutes()).padStart(2, "0")}`;
+
+        return {
+          id: item.id || Math.random().toString(),
+          created_at: item.created_at,
+          accuracy: Number(item.accuracy) || 0,
+          level_id: item.level_id,
+          level_title: title,
+          formattedDate: dateStr,
+        };
+      });
+
+      setData(formatted);
       setLoading(false);
-    });
+    };
+
+    fetchHistory();
   }, []);
 
-  const handleLevelSelect = (level: Level) => {
-    const targetLevel = BLIND_STAGES.find((s) => s.id === level.id) || level;
-    setSelectedLevel(targetLevel);
-    setGameState("playing");
-  };
-
-  const handleGameFinish = async (accuracy: number, isSuccess: boolean) => {
-    const currentLevel = selectedLevel;
-    if (!currentLevel || !user) return;
-
-    let nextLevelId: string | null = null;
-    if (isSuccess) {
-      const currentIndex = BLIND_STAGES.findIndex((s) => s.id === currentLevel.id);
-      if (currentIndex !== -1 && currentIndex < BLIND_STAGES.length - 1) {
-        nextLevelId = BLIND_STAGES[currentIndex + 1].id;
-      }
-    }
-
-    setLastResult({ accuracy, isSuccess, nextLevelId });
-    setGameState("result");
-
-    const targetLevelId = isSuccess && nextLevelId ? nextLevelId : currentLevel.id;
-    const jstNow = getJSTDateString();
-
-    // 💡 1. 練習記録を typing_results テーブルに保存（グラフ・履歴用）
-    const { error: resultError } = await supabase.from("typing_results").insert({
-      user_id: user.id,
-      level_id: currentLevel.id,
-      accuracy: Math.round(accuracy),
-      is_success: isSuccess,
-      created_at: jstNow,
-    });
-
-    if (resultError) {
-      console.error("❌ 履歴保存エラー:", resultError.message);
-    }
-
-    // 💡 2. 進捗状況を user_progress_blind テーブルに更新（ロック解除用）
-    const currentHighestIdx = BLIND_STAGES.findIndex((s) => s.id === highestLevelId);
-    const targetIdx = BLIND_STAGES.findIndex((s) => s.id === targetLevelId);
-
-    let newHighestId = highestLevelId;
-    if (targetIdx > currentHighestIdx) {
-      newHighestId = targetLevelId;
-      setHighestLevelId(targetLevelId);
-    }
-
-    await supabase.from("user_progress_blind").upsert(
-      {
-        user_id: user.id,
-        highest_level_id: newHighestId,
-        updated_at: jstNow,
-      },
-      { onConflict: "user_id" }
-    );
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-xl font-medium text-gray-400 animate-pulse">Loading...</div>
-      </div>
-    );
-  }
+  if (!mounted) return null;
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center py-12 px-4">
-      <header className="w-full max-w-4xl flex justify-between items-center mb-12">
-        <div>
-          <h1 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-indigo-600">
-            Blind Touch (交互モード)
-          </h1>
-          <p className="text-sm text-gray-500">{user?.email}</p>
-        </div>
-
-        <div className="flex gap-3 items-center">
+      <div className="w-full max-w-4xl bg-white p-8 rounded-3xl shadow-xl flex flex-col gap-8">
+        <div className="flex justify-between items-center border-b pb-4">
+          <div>
+            <h1 className="text-2xl font-black text-gray-800">Practice Stats</h1>
+            <p className="text-sm text-gray-500">タイピング精度の成長記録</p>
+          </div>
           <Link
             href="/"
-            className="px-4 py-2 text-xs font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors"
+            className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700 transition-colors shadow-md"
           >
-            🏠 通常モードへ戻る
+            ← 練習画面に戻る
           </Link>
         </div>
-      </header>
 
-      <main className="w-full max-w-4xl flex flex-col items-center">
-        {gameState === "selecting" && (
-          <BlindLevelSelector
-            highestBlindLevelId={highestLevelId}
-            onSelectLevel={handleLevelSelect}
-          />
-        )}
-
-        {gameState === "playing" && selectedLevel && (
-          selectedLevel.isBlind ? (
-            <BlindTypingGame
-              key={selectedLevel.id}
-              level={selectedLevel}
-              onFinish={handleGameFinish}
-              onCancel={() => setGameState("selecting")}
-            />
-          ) : (
-            <TypingGame
-              key={selectedLevel.id}
-              level={selectedLevel}
-              onFinish={handleGameFinish}
-              onCancel={() => setGameState("selecting")}
-            />
-          )
-        )}
-
-        {gameState === "result" && lastResult && selectedLevel && (
-          <div className="max-w-md w-full bg-white rounded-3xl shadow-xl p-10 text-center animate-in fade-in zoom-in duration-300">
-            <h2 className="text-2xl font-bold text-gray-800 mb-2">Result</h2>
-            <p className="text-gray-500 mb-8">{selectedLevel.title}</p>
-
-            <div className={`text-6xl font-black mb-4 ${lastResult.isSuccess ? 'text-green-500' : 'text-red-500'}`}>
-              {Math.round(lastResult.accuracy)}%
-            </div>
-
-            <div className="flex flex-col gap-3">
-              {lastResult.isSuccess && lastResult.nextLevelId ? (
-                <button
-                  onClick={() => {
-                    const nextLevel = BLIND_STAGES.find((s) => s.id === lastResult.nextLevelId);
-                    if (nextLevel) {
-                      setSelectedLevel(nextLevel);
-                      setGameState("playing");
-                    }
-                  }}
-                  className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-4 rounded-2xl transition-all shadow-lg"
-                >
-                  Next Step 🚀
-                </button>
-              ) : (
-                <button
-                  onClick={() => setGameState("playing")}
-                  className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-4 rounded-2xl transition-all shadow-lg"
-                >
-                  Try Again
-                </button>
-              )}
-
-              <button
-                onClick={() => setGameState("selecting")}
-                className="w-full bg-white hover:bg-gray-50 text-gray-600 font-bold py-3.5 rounded-2xl border border-gray-200"
-              >
-                Back to Levels
-              </button>
-            </div>
+        {loading ? (
+          <div className="h-64 flex items-center justify-center text-gray-400 font-medium animate-pulse">
+            データを読み込み中...
           </div>
+        ) : data.length === 0 ? (
+          <div className="h-64 flex flex-col items-center justify-center text-gray-400 gap-2 border-2 border-dashed border-gray-200 rounded-2xl">
+            <p className="font-bold text-gray-500">まだ練習記録がありません</p>
+            <p className="text-xs text-gray-400">練習をプレイすると、ここにグラフと履歴が表示されます。</p>
+          </div>
+        ) : (
+          <>
+            {/* 📊 グラフエリア */}
+            <div className="h-72 w-full pt-4">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={data} margin={{ top: 10, right: 20, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                  <XAxis dataKey="formattedDate" tick={{ fontSize: 11, fill: "#888888" }} />
+                  <YAxis domain={[0, 100]} unit="%" tick={{ fontSize: 11, fill: "#888888" }} />
+
+                  {/* ホバー時に「レベル名」「日時」「正確性」を表示 */}
+                  <Tooltip
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        const record = payload[0].payload as HistoryRecord;
+                        return (
+                          <div className="bg-gray-900 text-white p-3 rounded-xl shadow-lg text-xs border border-gray-700">
+                            <p className="font-bold text-indigo-300 mb-1">
+                              {record.level_title}
+                            </p>
+                            <p className="text-gray-300">日時: {record.formattedDate}</p>
+                            <p className="text-sm font-black text-green-400 mt-1">
+                              正確性: {Math.round(record.accuracy)}%
+                            </p>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+
+                  <Line
+                    type="monotone"
+                    dataKey="accuracy"
+                    stroke="#4f46e5"
+                    strokeWidth={3}
+                    dot={{ r: 4, fill: "#4f46e5" }}
+                    activeDot={{ r: 7, fill: "#6366f1" }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* 📋 詳細履歴テーブル */}
+            <div className="mt-4">
+              <h3 className="text-sm font-bold text-gray-700 mb-3">直近の練習履歴一覧</h3>
+              <div className="border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
+                <table className="w-full text-left text-xs text-gray-600">
+                  <thead className="bg-gray-50 border-b border-gray-100 font-bold text-gray-400">
+                    <tr>
+                      <th className="p-3">日時</th>
+                      <th className="p-3">レベル / モード</th>
+                      <th className="p-3 text-right">正確性</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {data.slice().reverse().map((record) => (
+                      <tr key={record.id} className="hover:bg-gray-50/50">
+                        <td className="p-3 font-mono text-gray-400">{record.formattedDate}</td>
+                        <td className="p-3 font-bold text-gray-800">{record.level_title}</td>
+                        <td className="p-3 text-right font-mono font-bold text-indigo-600">
+                          {Math.round(record.accuracy)}%
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
         )}
-      </main>
+      </div>
     </div>
   );
 }
