@@ -38,6 +38,8 @@ export const STAGES: Level[] = [
   { id: "4-1", stage: 4, step: 1, title: "全キー混合 (ハイライトなし)", keys: "yuhjnmtrgfbvik,edcol.wsxp@;:/\ qaz", homeKey: null, threshold: 80, showHighlight: false },
 ];
 
+
+/*
 // 旧: export const STAGES: Level[] = [ ... ]; （既存のSTAGESはそのまま残します）
 
 // -------------------------------------------------------------
@@ -68,8 +70,50 @@ export const BLIND_STAGES: Level[] = [
   { id: "4-3", stage: 4, step: 3, title: "左手小指練習", keys: "qaz", homeKey: "a", threshold: 90, showHighlight: true, isBlind: false },
   { id: "4-4", stage: 4, step: 4, title: "左手小指練習 (ブラインド)", keys: "qaz", homeKey: "a", threshold: 90, showHighlight: false, isBlind: true },
 ];
+*/
 //--------------------------------------------------------------
+// -------------------------------------------------------------
+// 【更新】通常 ⇄ ブラインドが交互に進むフルステージ構成
+// -------------------------------------------------------------
+export const BLIND_STAGES: Level[] = [
+  // ==========================================
+  // Stage 1: 各指ごとの練習 (通常 ⇄ ブラインド)
+  // ==========================================
+  { id: "1-1", stage: 1, step: 1, title: "右手人差し指練習", keys: "yuhjnm", homeKey: "j", threshold: 90, showHighlight: true, isBlind: false },
+  { id: "1-2", stage: 1, step: 2, title: "右手人差し指練習 (ブラインド)", keys: "yuhjnm", homeKey: "j", threshold: 90, showHighlight: false, isBlind: true },
+  { id: "1-3", stage: 1, step: 3, title: "左手人差し指練習", keys: "trgfbv", homeKey: "f", threshold: 90, showHighlight: true, isBlind: false },
+  { id: "1-4", stage: 1, step: 4, title: "左手人差し指練習 (ブラインド)", keys: "trgfbv", homeKey: "f", threshold: 90, showHighlight: false, isBlind: true },
+  { id: "1-5", stage: 1, step: 5, title: "右手中指練習", keys: "ik,", homeKey: "k", threshold: 90, showHighlight: true, isBlind: false },
+  { id: "1-6", stage: 1, step: 6, title: "右手中指練習 (ブラインド)", keys: "ik,", homeKey: "k", threshold: 90, showHighlight: false, isBlind: true },
+  { id: "1-7", stage: 1, step: 7, title: "左手中指練習", keys: "edc", homeKey: "d", threshold: 90, showHighlight: true, isBlind: false },
+  { id: "1-8", stage: 1, step: 8, title: "左手中指練習 (ブラインド)", keys: "edc", homeKey: "d", threshold: 90, showHighlight: false, isBlind: true },
+  { id: "1-9", stage: 1, step: 9, title: "右手薬指練習", keys: "ol.", homeKey: "l", threshold: 90, showHighlight: true, isBlind: false },
+  { id: "1-10", stage: 1, step: 10, title: "右手薬指練習 (ブラインド)", keys: "ol.", homeKey: "l", threshold: 90, showHighlight: false, isBlind: true },
+  { id: "1-11", stage: 1, step: 11, title: "左手薬指練習", keys: "wsx", homeKey: "s", threshold: 90, showHighlight: true, isBlind: false },
+  { id: "1-12", stage: 1, step: 12, title: "左手薬指練習 (ブラインド)", keys: "wsx", homeKey: "s", threshold: 90, showHighlight: false, isBlind: true },
+  { id: "1-13", stage: 1, step: 13, title: "右手小指練習", keys: "p@;:/\ ", homeKey: ";", threshold: 90, showHighlight: true, isBlind: false },
+  { id: "1-14", stage: 1, step: 14, title: "右手小指練習 (ブラインド)", keys: "p@;:/\ ", homeKey: ";", threshold: 90, showHighlight: false, isBlind: true },
+  { id: "1-15", stage: 1, step: 15, title: "左手小指練習", keys: "qaz", homeKey: "a", threshold: 90, showHighlight: true, isBlind: false },
+  { id: "1-16", stage: 1, step: 16, title: "左手小指練習 (ブラインド)", keys: "qaz", homeKey: "a", threshold: 90, showHighlight: false, isBlind: true },
 
+  // ==========================================
+  // Stage 2: 混合練習 (通常 ⇄ ブラインド)
+  // ==========================================
+  { id: "2-1", stage: 2, step: 1, title: "人差し指混合", keys: "yuhjnmtrgfbv", homeKey: null, threshold: 85, showHighlight: true, isBlind: false },
+  { id: "2-2", stage: 2, step: 2, title: "人差し指混合 (ブラインド)", keys: "yuhjnmtrgfbv", homeKey: null, threshold: 85, showHighlight: false, isBlind: true },
+  { id: "2-3", stage: 2, step: 3, title: "中指混合", keys: "ik,edc", homeKey: null, threshold: 85, showHighlight: true, isBlind: false },
+  { id: "2-4", stage: 2, step: 4, title: "中指混合 (ブラインド)", keys: "ik,edc", homeKey: null, threshold: 85, showHighlight: false, isBlind: true },
+  { id: "2-5", stage: 2, step: 5, title: "薬指混合", keys: "ol.wsx", homeKey: null, threshold: 85, showHighlight: true, isBlind: false },
+  { id: "2-6", stage: 2, step: 6, title: "薬指混合 (ブラインド)", keys: "ol.wsx", homeKey: null, threshold: 85, showHighlight: false, isBlind: true },
+  { id: "2-7", stage: 2, step: 7, title: "小指混合", keys: "p@;:/\ qaz", homeKey: null, threshold: 85, showHighlight: true, isBlind: false },
+  { id: "2-8", stage: 2, step: 8, title: "小指混合 (ブラインド)", keys: "p@;:/\ qaz", homeKey: null, threshold: 85, showHighlight: false, isBlind: true },
+
+  // ==========================================
+  // Stage 3: 全キー総合練習 (通常 ⇄ ブラインド)
+  // ==========================================
+  { id: "3-1", stage: 3, step: 1, title: "全キー混合", keys: "yuhjnmtrgfbvik,edcol.wsxp@;:/\ qaz", homeKey: null, threshold: 80, showHighlight: true, isBlind: false },
+  { id: "3-2", stage: 3, step: 2, title: "全キー混合 (ブラインド)", keys: "yuhjnmtrgfbvik,edcol.wsxp@;:/\ qaz", homeKey: null, threshold: 80, showHighlight: false, isBlind: true },
+];
 
 
 
