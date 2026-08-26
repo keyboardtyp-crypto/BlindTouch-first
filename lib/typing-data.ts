@@ -154,7 +154,7 @@ export const BLIND_STAGES: Level[] = [
 // 各指強化モード用のステージ定義（全8本の指）
 export const FINGER_STAGES: Level[] = [
   
-  /*
+  
   // ==========================================
   // 1. 右手人差し指 (j -> u -> h -> m -> n -> y)
   // ==========================================
@@ -174,7 +174,7 @@ export const FINGER_STAGES: Level[] = [
   { id: "f-2-4", stage: 2, step: 4, title: "左手人差し指: Step 4 (f, r, g, v)", keys: "frgv", homeKey: "f", threshold: 90, showHighlight: false, isBlind: true },
   { id: "f-2-5", stage: 2, step: 5, title: "左手人差し指: Step 5 (f, r, g, v, b)", keys: "frgvb", homeKey: "f", threshold: 90, showHighlight: false, isBlind: true },
   { id: "f-2-6", stage: 2, step: 6, title: "左手人差し指: Step 6 (f, r, g, v, b, t)", keys: "frgvbt", homeKey: "f", threshold: 90, showHighlight: false, isBlind: true },
-
+/*
   // ==========================================
   // 3. 右手中指 (k -> i -> ,)
   // ==========================================
@@ -237,6 +237,10 @@ export const FINGER_STAGES: Level[] = [
   // ==========================================
   { id: "f-12-1", stage: 12, step: 1, title: "全指混合 (全キー)", keys: "juhmnyfrgvbtki,declo.swx;p/aqz", homeKey: null, threshold: 90, showHighlight: false, isBlind: true },
 */
+// ==========================================
+  // 9. 人差し指左右混合
+  // ==========================================
+  { id: "f-9-1", stage: 9, step: 1, title: "人差し指左右混合", keys: "juhmnyfrgvbt", homeKey: null, threshold: 90, showHighlight: false, isBlind: true },
 
 // ==========================================
   // 3. 右手中指 (k -> i -> ,)
