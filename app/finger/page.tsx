@@ -121,7 +121,11 @@ export default function FingerPracticePage() {
     // 📝 2. ステージクリア時に最高到達レベルを `user_progress_finger` に書き込み
     if (isSuccess) {
       const currentIdx = FINGER_STAGES.findIndex((s: Level) => s.id === selectedLevel.id);
-      if (currentIdx !== -1 && currentIdx < FINGER_STAGES.length - 1) {
+
+      // 特別解放ステップ（Step 31以上 = インデックス30以上）クリア時はメインルートの進捗（highest_level_id）を進めない
+      const isSpecialStep = currentIdx >= 30;
+
+      if (!isSpecialStep && currentIdx !== -1 && currentIdx < FINGER_STAGES.length - 1) {
         const nextLevelId = FINGER_STAGES[currentIdx + 1].id;
         const highestIdx = FINGER_STAGES.findIndex((s: Level) => s.id === highestLevelId);
 
@@ -151,14 +155,12 @@ export default function FingerPracticePage() {
 
   // 🔓 ロック解除判定用のヘルパー関数
   const checkIsUnlocked = (stepIndex: number) => {
-    // 1. 通常の連続到達判定（現在の到達レベル以下）
+    // 1. 通常の順次到達判定（現在の到達レベル以下）
     if (stepIndex <= (highestIdx === -1 ? 0 : highestIdx)) {
       return true;
     }
 
-    // 2. 特定ステップ完了による個別アンロック条件
-    // インデックスは 0 起点のため、Step X 完了（Step X+1 以降到達）は `highestIdx >= X`
-    
+    // 2. 特定ステップ完了による個別アンロック条件（インデックス表記）
     // Step 31 (idx: 30) -> Step 12 完了時 (highestIdx >= 12)
     if (stepIndex === 30 && highestIdx >= 12) return true;
 
