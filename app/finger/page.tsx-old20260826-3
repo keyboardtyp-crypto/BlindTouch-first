@@ -149,28 +149,6 @@ export default function FingerPracticePage() {
 
   const highestIdx = FINGER_STAGES.findIndex((s: Level) => s.id === highestLevelId);
 
-  // 🔓 ロック解除判定用のヘルパー関数
-  const checkIsUnlocked = (stepIndex: number) => {
-    // 1. 通常の連続到達判定（現在の到達レベル以下）
-    if (stepIndex <= (highestIdx === -1 ? 0 : highestIdx)) {
-      return true;
-    }
-
-    // 2. 特定ステップ完了による個別アンロック条件
-    // インデックスは 0 起点のため、Step X 完了（Step X+1 以降到達）は `highestIdx >= X`
-    
-    // Step 31 (idx: 30) -> Step 12 完了時 (highestIdx >= 12)
-    if (stepIndex === 30 && highestIdx >= 12) return true;
-
-    // Step 32 (idx: 31) -> Step 18 完了時 (highestIdx >= 18)
-    if (stepIndex === 31 && highestIdx >= 18) return true;
-
-    // Step 33 (idx: 32) -> Step 24 完了時 (highestIdx >= 24)
-    if (stepIndex === 32 && highestIdx >= 24) return true;
-
-    return false;
-  };
-
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center py-12 px-4 relative overflow-hidden">
       {/* 🎊 300ポイントごとの祝賀ポップアップ */}
@@ -214,7 +192,7 @@ export default function FingerPracticePage() {
         {gameState === "selecting" && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {FINGER_STAGES.map((stage: Level, idx: number) => {
-              const isUnlocked = checkIsUnlocked(idx);
+              const isUnlocked = idx <= (highestIdx === -1 ? 0 : highestIdx);
               return (
                 <button
                   key={stage.id}
