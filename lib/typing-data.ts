@@ -153,6 +153,8 @@ export const BLIND_STAGES: Level[] = [
 
 // 各指強化モード用のステージ定義（全8本の指）
 export const FINGER_STAGES: Level[] = [
+  
+  /*
   // ==========================================
   // 1. 右手人差し指 (j -> u -> h -> m -> n -> y)
   // ==========================================
@@ -234,7 +236,59 @@ export const FINGER_STAGES: Level[] = [
   // 12. 全指混合 (人差し指＋中指＋薬指＋小指)
   // ==========================================
   { id: "f-12-1", stage: 12, step: 1, title: "全指混合 (全キー)", keys: "juhmnyfrgvbtki,declo.swx;p/aqz", homeKey: null, threshold: 90, showHighlight: false, isBlind: true },
+*/
 
+// ==========================================
+  // 3. 右手中指 (k -> i -> ,)
+  // ==========================================
+  { id: "f-3-1", stage: 3, step: 1, title: "右手中指: Step 1 (k)", keys: "k", homeKey: "k", threshold: 90, showHighlight: false, isBlind: true },
+  { id: "f-3-2", stage: 3, step: 2, title: "右手中指: Step 2 (k, i)", keys: "ki", homeKey: "k", threshold: 90, showHighlight: false, isBlind: true },
+  { id: "f-3-3", stage: 3, step: 3, title: "右手中指: Step 3 (k, i, ,)", keys: "ki,", homeKey: "k", threshold: 90, showHighlight: false, isBlind: true },
+
+  // ==========================================
+  // 4. 左手中指 (d -> e -> c)
+  // ==========================================
+  { id: "f-4-1", stage: 4, step: 1, title: "左手中指: Step 1 (d)", keys: "d", homeKey: "d", threshold: 90, showHighlight: false, isBlind: true },
+  { id: "f-4-2", stage: 4, step: 2, title: "左手中指: Step 2 (d, e)", keys: "de", homeKey: "d", threshold: 90, showHighlight: false, isBlind: true },
+  { id: "f-4-3", stage: 4, step: 3, title: "左手中指: Step 3 (d, e, c)", keys: "dec", homeKey: "d", threshold: 90, showHighlight: false, isBlind: true },
+
+  // 9. 人差し指＋中指混合 (Step 20 に相当)
+  { id: "f-10-1", stage: 10, step: 1, title: "人差し指＋中指混合", keys: "juhmnyfrgvbtki,dec", homeKey: null, threshold: 90, showHighlight: false, isBlind: true },
+
+  // ==========================================
+  // 5. 右手薬指 (l -> o -> .)
+  // ==========================================
+  { id: "f-5-1", stage: 5, step: 1, title: "右手薬指: Step 1 (l)", keys: "l", homeKey: "l", threshold: 90, showHighlight: false, isBlind: true },
+  { id: "f-5-2", stage: 5, step: 2, title: "右手薬指: Step 2 (l, o)", keys: "lo", homeKey: "l", threshold: 90, showHighlight: false, isBlind: true },
+  { id: "f-5-3", stage: 5, step: 3, title: "右手薬指: Step 3 (l, o, .)", keys: "lo.", homeKey: "l", threshold: 90, showHighlight: false, isBlind: true },
+
+  // ==========================================
+  // 6. 左手薬指 (s -> w -> x)
+  // ==========================================
+  { id: "f-6-1", stage: 6, step: 1, title: "左手薬指: Step 1 (s)", keys: "s", homeKey: "s", threshold: 90, showHighlight: false, isBlind: true },
+  { id: "f-6-2", stage: 6, step: 2, title: "左手薬指: Step 2 (s, w)", keys: "sw", homeKey: "s", threshold: 90, showHighlight: false, isBlind: true },
+  { id: "f-6-3", stage: 6, step: 3, title: "左手薬指: Step 3 (s, w, x)", keys: "swx", homeKey: "s", threshold: 90, showHighlight: false, isBlind: true },
+
+  // 11. 人差し指＋中指＋薬指混合 (Step 27 に相当)
+  { id: "f-11-1", stage: 11, step: 1, title: "人差し指＋中指＋薬指混合", keys: "juhmnyfrgvbtki,declo.swx", homeKey: null, threshold: 90, showHighlight: false, isBlind: true },
+
+  // ==========================================
+  // 7. 右手小指 (; -> p -> /)
+  // ==========================================
+  { id: "f-7-1", stage: 7, step: 1, title: "右手小指: Step 1 (;)", keys: ";", homeKey: ";", threshold: 90, showHighlight: false, isBlind: true },
+  { id: "f-7-2", stage: 7, step: 2, title: "右手小指: Step 2 (;, p)", keys: ";p", homeKey: ";", threshold: 90, showHighlight: false, isBlind: true },
+  { id: "f-7-3", stage: 7, step: 3, title: "右手小指: Step 3 (;, p, /)", keys: ";p/", homeKey: ";", threshold: 90, showHighlight: false, isBlind: true },
+
+  // ==========================================
+  // 8. 左手小指 (a -> q -> z)
+  // ==========================================
+  { id: "f-8-1", stage: 8, step: 1, title: "左手小指: Step 1 (a)", keys: "a", homeKey: "a", threshold: 90, showHighlight: false, isBlind: true },
+  { id: "f-8-2", stage: 8, step: 2, title: "左手小指: Step 2 (a, q)", keys: "aq", homeKey: "a", threshold: 90, showHighlight: false, isBlind: true },
+  { id: "f-8-3", stage: 8, step: 3, title: "左手小指: Step 3 (a, q, z)", keys: "aqz", homeKey: "a", threshold: 90, showHighlight: false, isBlind: true },
+
+  // 12. 全指混合 (Step 34 に相当)
+  { id: "f-12-1", stage: 12, step: 1, title: "全指混合 (全キー)", keys: "juhmnyfrgvbtki,declo.swx;p/aqz", homeKey: null, threshold: 90, showHighlight: false, isBlind: true },
+  
 ];
 
 
