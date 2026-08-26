@@ -1,247 +1,129 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/client";
-import { FINGER_STAGES, Level } from "@/lib/typing-data";
-import { BlindTypingGame } from "@/components/BlindTypingGame";
-import type { User } from "@supabase/supabase-js";
+import { FINGER_STAGES } from "@/lib/typing-data"; // ファイルパスはプロジェクト構造に合わせて調整してください
 
-// 🔊 ブラウザ標準Web Audio APIでファンファーレ音を再生
-const playCelebrationSound = () => {
-  try {
-    const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-    if (!AudioContext) return;
-    const ctx = new AudioContext();
-
-    const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
-    notes.forEach((freq, idx) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = "triangle";
-      osc.frequency.value = freq;
-
-      const startTime = ctx.currentTime + idx * 0.12;
-      gain.gain.setValueAtTime(0, startTime);
-      gain.gain.linearRampToValueAtTime(0.3, startTime + 0.05);
-      gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.5);
-
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-
-      osc.start(startTime);
-      osc.stop(startTime + 0.5);
-    });
-  } catch (e) {
-    console.error("Audio play error:", e);
-  }
+// 各ステージの表示用ラベル定義
+const STAGE_LABELS: Record<number, string> = {
+  1: "右手人差し指",
+  2: "左手人差し指",
+  3: "右手中指",
+  4: "左手中指",
+  5: "右手薬指",
+  6: "左手薬指",
+  7: "右手小指",
+  8: "左手小指",
+  9: "人差し指 左右混合",
+  10: "人差し指＋中指 混合",
+  11: "人差し指＋中指＋薬指 混合",
+  12: "全指 混合",
 };
 
-export default function FingerPracticePage() {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [highestLevelId, setHighestLevelId] = useState("f-1-1");
-  const [selectedLevel, setSelectedLevel] = useState<Level | null>(null);
-  const [gameState, setGameState] = useState<"selecting" | "playing" | "result">("selecting");
-  const [lastAccuracy, setLastAccuracy] = useState(0);
+export default function FingerPage() {
+  const [selectedStage, setSelectedStage] = useState<number>(1);
+  const [clearedSteps, setClearedSteps] = useState<Record<string, boolean>>({});
 
-  // モード別ポイント & 合計ポイント
-  const [fingerPoints, setFingerPoints] = useState(0);
-  const [blindPoints, setBlindPoints] = useState(0);
-  const [showCelebration, setShowCelebration] = useState(false);
-
-  const totalPoints = fingerPoints + blindPoints;
-
-  const supabase = createClient();
-
+  // ユーザーのクリア状況をローカルストレージ等から取得（必要に応じて実装）
   useEffect(() => {
-    // 各モードのポイントを取得
-    const savedFingerPoints = localStorage.getItem("finger_practice_points");
-    const savedBlindPoints = localStorage.getItem("blind_practice_points");
-
-    if (savedFingerPoints) setFingerPoints(parseInt(savedFingerPoints, 10));
-    if (savedBlindPoints) setBlindPoints(parseInt(savedBlindPoints, 10));
-
-    supabase.auth.getUser().then(async ({ data: { user: currentUser } }) => {
-      setUser(currentUser);
-      if (currentUser) {
-        // 📥 Supabase から進行状況を取得
-        const { data, error } = await supabase
-          .from("user_progress_finger")
-          .select("highest_level_id")
-          .eq("user_id", currentUser.id)
-          .maybeSingle();
-
-        if (error) {
-          console.error("Error fetching progress:", error);
-        } else if (data?.highest_level_id) {
-          setHighestLevelId(data.highest_level_id);
-        }
+    const savedProgress = localStorage.getItem("finger_progress");
+    if (savedProgress) {
+      try {
+        setClearedSteps(JSON.parse(savedProgress));
+      } catch (e) {
+        console.error("Failed to parse progress", e);
       }
-      setLoading(false);
-    });
+    }
   }, []);
 
-  const handleGameFinish = async (accuracy: number, isSuccess: boolean) => {
-    if (!selectedLevel || !user) return;
-    setLastAccuracy(accuracy);
-    setGameState("result");
+  // 選択中のステージのステップ一覧を取得
+  const currentSteps = FINGER_STAGES.filter(
+    (stage) => stage.stage === selectedStage
+  );
 
-    // 指強化モードのポイント加算
-    const addedPoints = isSuccess ? 50 : 3;
-    const newFingerPoints = fingerPoints + addedPoints;
-
-    const oldTotal = fingerPoints + blindPoints;
-    const newTotal = newFingerPoints + blindPoints;
-
-    // 💡 合計300ポイント「毎」に到達したか判定
-    const oldMilestone = Math.floor(oldTotal / 300);
-    const newMilestone = Math.floor(newTotal / 300);
-    const reached300Multiple = newMilestone > oldMilestone;
-
-    setFingerPoints(newFingerPoints);
-    localStorage.setItem("finger_practice_points", newFingerPoints.toString());
-
-    if (reached300Multiple) {
-      setShowCelebration(true);
-      playCelebrationSound();
-    } else if (isSuccess) {
-      playCelebrationSound();
-    }
-
-    // 📝 1. タイピング結果ログを書き込み
-    await supabase.from("typing_results").insert({
-      user_id: user.id,
-      level_id: selectedLevel.id,
-      accuracy: Math.round(accuracy),
-      is_success: isSuccess,
-      created_at: new Date().toISOString(),
-    });
-
-    // 📝 2. ステージクリア時に最高到達レベルを `user_progress_finger` に書き込み
-    if (isSuccess) {
-      const currentIdx = FINGER_STAGES.findIndex((s: Level) => s.id === selectedLevel.id);
-      if (currentIdx !== -1 && currentIdx < FINGER_STAGES.length - 1) {
-        const nextLevelId = FINGER_STAGES[currentIdx + 1].id;
-        const highestIdx = FINGER_STAGES.findIndex((s: Level) => s.id === highestLevelId);
-
-        if (currentIdx + 1 > highestIdx) {
-          setHighestLevelId(nextLevelId);
-
-          const { error } = await supabase.from("user_progress_finger").upsert(
-            {
-              user_id: user.id,
-              highest_level_id: nextLevelId,
-              updated_at: new Date().toISOString(),
-            },
-            { onConflict: "user_id" }
-          );
-
-          if (error) {
-            console.error("Error updating user_progress_finger:", error);
-          }
-        }
-      }
-    }
-  };
-
-  if (loading) return <div className="p-12 text-center text-gray-400">Loading...</div>;
-
-  const highestIdx = FINGER_STAGES.findIndex((s: Level) => s.id === highestLevelId);
+  // 全ステージID一覧を取得（重複排除）
+  const stageIds = Array.from(
+    new Set(FINGER_STAGES.map((s) => s.stage))
+  ).sort((a, b) => a - b);
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center py-12 px-4 relative overflow-hidden">
-      {/* 🎊 300ポイントごとの祝賀ポップアップ */}
-      {showCelebration && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl border-4 border-yellow-400 relative">
-            <div className="text-6xl mb-4 animate-bounce">🎊 🎊 🎊</div>
-            <h2 className="text-2xl font-black text-yellow-600 mb-2">
-              {Math.floor(totalPoints / 300) * 300}ポイント たまったよ！
-            </h2>
-            <p className="text-gray-600 font-bold mb-6">すごい！どんどんれんしゅうが進んでるね！</p>
-            <button
-              onClick={() => setShowCelebration(false)}
-              className="w-full bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 text-white font-black py-4 rounded-2xl shadow-lg transition-transform active:scale-95 text-lg"
-            >
-              やったー！ 🚀
-            </button>
+    <div className="min-h-screen bg-slate-50 p-4 md:p-8">
+      <div className="max-w-4xl mx-auto space-y-6">
+        {/* ヘッダー */}
+        <div className="flex items-center justify-between bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+              👈 各指強化モード
+            </h1>
+            <p className="text-sm text-slate-500 mt-1">
+              一本ずつ指のホームポジションと可動域を鍛えます
+            </p>
           </div>
-        </div>
-      )}
-
-      <header className="w-full max-w-4xl flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-3xl font-black text-emerald-600">👈 各指強化モード</h1>
-          <p className="text-sm text-gray-500">{user?.email}</p>
-        </div>
-
-        <div className="flex items-center gap-4">
-          <div className="bg-amber-100 border border-amber-300 text-amber-800 px-4 py-2 rounded-2xl font-black text-sm flex items-center gap-1 shadow-sm">
-            <span>⭐</span>
-            <span>{totalPoints} pt</span>
-          </div>
-
-          <Link href="/" className="px-4 py-2 text-xs font-bold bg-gray-100 hover:bg-gray-200 rounded-xl">
-            🏠 トップへ戻る
+          <Link
+            href="/"
+            className="px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 rounded-xl hover:bg-slate-200 transition-colors"
+          >
+            トップへ戻る
           </Link>
         </div>
-      </header>
 
-      <main className="w-full max-w-4xl">
-        {gameState === "selecting" && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {FINGER_STAGES.map((stage: Level, idx: number) => {
-              const isUnlocked = idx <= (highestIdx === -1 ? 0 : highestIdx);
-              return (
-                <button
-                  key={stage.id}
-                  disabled={!isUnlocked}
-                  onClick={() => {
-                    setSelectedLevel(stage);
-                    setGameState("playing");
-                  }}
-                  className={`p-5 rounded-2xl text-left border transition-all ${
-                    isUnlocked
-                      ? "bg-white border-emerald-200 shadow-sm hover:border-emerald-500"
-                      : "bg-gray-100 border-gray-200 opacity-50 cursor-not-allowed"
-                  }`}
-                >
-                  <p className="text-xs font-bold text-emerald-600 mb-1">Step {idx + 1}</p>
-                  <h3 className="font-bold text-gray-800">{stage.title}</h3>
-                </button>
-              );
-            })}
-          </div>
-        )}
-
-        {gameState === "playing" && selectedLevel && (
-          <BlindTypingGame
-            level={selectedLevel}
-            onFinish={handleGameFinish}
-            onCancel={() => setGameState("selecting")}
-          />
-        )}
-
-        {gameState === "result" && (
-          <div className="bg-white p-8 rounded-3xl shadow-xl text-center max-w-md mx-auto">
-            <div className="text-5xl mb-2">🎉</div>
-            <h2 className="text-2xl font-bold mb-2 text-gray-800">Result</h2>
-            <p className="text-5xl font-black text-emerald-500 mb-4">{Math.round(lastAccuracy)}%</p>
-
-            <div className="bg-amber-50 text-amber-700 rounded-xl p-3 mb-6 text-sm font-bold border border-amber-200">
-              +{lastAccuracy >= (selectedLevel?.threshold || 90) ? 50 : 3} ポイント ゲット！
-            </div>
-
+        {/* ステージ選択タブ */}
+        <div className="flex flex-wrap gap-2 p-2 bg-white rounded-2xl shadow-sm border border-slate-100">
+          {stageIds.map((stageNum) => (
             <button
-              onClick={() => setGameState("selecting")}
-              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 rounded-xl transition-colors shadow-md"
+              key={stageNum}
+              onClick={() => setSelectedStage(stageNum)}
+              className={`px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                selectedStage === stageNum
+                  ? "bg-emerald-500 text-white shadow-sm"
+                  : "bg-slate-50 text-slate-600 hover:bg-slate-100"
+              }`}
             >
-              ステージ一覧へ戻る
+              {STAGE_LABELS[stageNum] || `Stage ${stageNum}`}
             </button>
-          </div>
-        )}
-      </main>
+          ))}
+        </div>
+
+        {/* ステップカード一覧 */}
+        <div className="grid gap-4 md:grid-cols-2">
+          {currentSteps.map((stepItem) => {
+            const isCleared = !!clearedSteps[stepItem.id];
+
+            return (
+              <Link
+                key={stepItem.id}
+                href={`/finger/play?id=${stepItem.id}`}
+                className={`group block p-5 bg-white rounded-2xl border transition-all duration-200 hover:shadow-md ${
+                  isCleared
+                    ? "border-emerald-200 bg-emerald-50/20"
+                    : "border-slate-100 hover:border-emerald-300"
+                }`}
+              >
+                <div className="flex items-start justify-between">
+                  <div>
+                    <span className="inline-block px-2.5 py-1 text-xs font-bold text-emerald-600 bg-emerald-50 rounded-lg mb-2">
+                      Step {stepItem.step}
+                    </span>
+                    <h3 className="text-base font-bold text-slate-800 group-hover:text-emerald-600 transition-colors">
+                      {stepItem.title}
+                    </h3>
+                  </div>
+                  {isCleared && (
+                    <span className="text-xl" title="クリア済み">
+                      ✅
+                    </span>
+                  )}
+                </div>
+
+                <div className="mt-4 flex items-center justify-between text-xs text-slate-400">
+                  <span>対象キー: <code className="px-1.5 py-0.5 bg-slate-100 rounded text-slate-600 font-mono">{stepItem.keys}</code></span>
+                  <span>合格基準: {stepItem.threshold}%</span>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }

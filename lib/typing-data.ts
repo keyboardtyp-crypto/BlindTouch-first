@@ -214,6 +214,27 @@ export const FINGER_STAGES: Level[] = [
   { id: "f-8-1", stage: 8, step: 1, title: "左手小指: Step 1 (a)", keys: "a", homeKey: "a", threshold: 90, showHighlight: false, isBlind: true },
   { id: "f-8-2", stage: 8, step: 2, title: "左手小指: Step 2 (a, q)", keys: "aq", homeKey: "a", threshold: 90, showHighlight: false, isBlind: true },
   { id: "f-8-3", stage: 8, step: 3, title: "左手小指: Step 3 (a, q, z)", keys: "aqz", homeKey: "a", threshold: 90, showHighlight: false, isBlind: true },
+
+// ==========================================
+  // 9. 人差し指左右混合
+  // ==========================================
+  { id: "f-9-1", stage: 9, step: 1, title: "人差し指左右混合", keys: "juhmnyfrgvbt", homeKey: null, threshold: 90, showHighlight: false, isBlind: true },
+
+  // ==========================================
+  // 10. 人差し指＋中指混合
+  // ==========================================
+  { id: "f-10-1", stage: 10, step: 1, title: "人差し指＋中指混合", keys: "juhmnyfrgvbtki,dec", homeKey: null, threshold: 90, showHighlight: false, isBlind: true },
+
+// ==========================================
+  // 11. 人差し指＋中指＋薬指混合
+  // ==========================================
+  { id: "f-11-1", stage: 11, step: 1, title: "人差し指＋中指＋薬指混合", keys: "juhmnyfrgvbtki,declo.swx", homeKey: null, threshold: 90, showHighlight: false, isBlind: true },
+
+  // ==========================================
+  // 12. 全指混合 (人差し指＋中指＋薬指＋小指)
+  // ==========================================
+  { id: "f-12-1", stage: 12, step: 1, title: "全指混合 (全キー)", keys: "juhmnyfrgvbtki,declo.swx;p/aqz", homeKey: null, threshold: 90, showHighlight: false, isBlind: true },
+
 ];
 
 
