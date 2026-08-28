@@ -1,7 +1,3 @@
-// =============================================================
-// 型定義
-// =============================================================
-
 export type Level = {
   id: string;
   stage: number;
@@ -11,121 +7,12 @@ export type Level = {
   homeKey: string | null;
   threshold: number;
   showHighlight: boolean;
+// -------------------------------------------------------------
+  // 【追加】ブラインドモード判定用のフラグ
+  // -------------------------------------------------------------
   isBlind?: boolean;
+
 };
-
-export interface RomajiWord {
-  kana: string;
-  romaji: string[]; // 自動生成された複数打鍵パターンを格納
-}
-
-export interface RomajiStage {
-  id: string;
-  stage: number;
-  step: number;
-  title: string;
-  rewardBuilding: {
-    name: string;
-    icon: string;
-  };
-  words: RomajiWord[];
-}
-
-// =============================================================
-// 1. ローマ字変換辞書 & 自動生成ロジック
-// =============================================================
-
-export const ROMAJI_MAP: Record<string, string[]> = {
-  // あ行
-  あ: ["a"], い: ["i"], う: ["u"], え: ["e"], お: ["o"],
-  // か行・が行
-  か: ["ka"], き: ["ki"], く: ["ku"], け: ["ke"], こ: ["ko"],
-  が: ["ga"], ぎ: ["gi"], ぐ: ["gu"], げ: ["ge"], ご: ["go"],
-  // さ行・ざ行
-  さ: ["sa"], し: ["si", "shi"], す: ["su"], せ: ["se"], そ: ["so"],
-  ざ: ["za"], じ: ["zi", "ji"], ず: ["zu"], ぜ: ["ze"], ぞ: ["zo"],
-  // た行・だ行
-  た: ["ta"], ち: ["ti", "chi"], つ: ["tu", "tsu"], て: ["te"], と: ["to"],
-  だ: ["da"], ぢ: ["di"], づ: ["du"], で: ["de"], ど: ["do"],
-  // な行・は行・ま行・や行・ら行・わ行
-  な: ["na"], に: ["ni"], ぬ: ["nu"], ね: ["ne"], の: ["no"],
-  は: ["ha"], ひ: ["hi"], ふ: ["hu", "fu"], へ: ["he"], ほ: ["ho"],
-  ま: ["ma"], み: ["mi"], む: ["mu"], め: ["me"], も: ["mo"],
-  や: ["ya"], ゆ: ["yu"], よ: ["yo"],
-  ら: ["ra"], り: ["ri"], る: ["ru"], れ: ["re"], ろ: ["ro"],
-  わ: ["wa"], を: ["wo"], ん: ["nn"],
-  // 拗音・しゃ行/ちゃ行など
-  しゃ: ["sya", "sha"], しゅ: ["syu", "shu"], しょ: ["syo", "sho"],
-  ちゃ: ["tya", "cha"], ちゅ: ["tyu", "chu"], ちょ: ["tyo", "cho"],
-  じゃ: ["zya", "ja", "jya"], じゅ: ["zyu", "ju", "jyu"], じょ: ["zyo", "jo", "jyo"],
-  きゃ: ["kya"], きゅ: ["kyu"], きょ: ["kyo"],
-  にゃ: ["nya"], にゅ: ["nyu"], にょ: ["nyo"],
-  ひゃ: ["hya"], ひゅ: ["hyu"], ひょ: ["hyo"],
-  みゃ: ["mya"], みゅ: ["myu"], みょ: ["myo"],
-  りゃ: ["rya"], りゅ: ["ryu"], りょ: ["ryo"],
-  ぎゃ: ["gya"], ぎゅ: ["gyu"], ぎょ: ["gyo"],
-  びゃ: ["bya"], びゅ: ["byu"], びょ: ["byo"],
-  ぴゃ: ["pya"], ぴゅ: ["pyu"], ぴょ: ["pyo"],
-};
-
-/**
- * かな文字列からあり得るすべてのローマ字入力パターンの配列を生成する関数
- */
-export function generateRomajiPatterns(kana: string): string[] {
-  let patterns: string[] = [""];
-
-  let i = 0;
-  while (i < kana.length) {
-    // 2文字（拗音：しゃ、ちゃ等）を優先チェック
-    const twoChars = kana.slice(i, i + 2);
-    let candidates = ROMAJI_MAP[twoChars];
-    let step = 2;
-
-    if (!candidates) {
-      // 1文字チェック
-      const oneChar = kana.slice(i, i + 1);
-      candidates = ROMAJI_MAP[oneChar] || [oneChar]; // 未登録文字（記号やカタカナ等）はそのまま保持
-      step = 1;
-    }
-
-    const nextPatterns: string[] = [];
-    for (const current of patterns) {
-      for (const cand of candidates) {
-        nextPatterns.push(current + cand);
-      }
-    }
-    patterns = nextPatterns;
-    i += step;
-  }
-
-  return patterns;
-}
-
-// 簡単入力用のヘルパー関数
-function makeStage(
-  id: string,
-  stage: number,
-  step: number,
-  title: string,
-  rewardBuilding: { name: string; icon: string },
-  words: { kana: string }[]
-): RomajiStage {
-  return {
-    id,
-    stage,
-    step,
-    title,
-    rewardBuilding,
-    words: words.map((w) => ({
-      kana: w.kana,
-      romaji: generateRomajiPatterns(w.kana),
-    })),
-  };
-}
-
-// =============================================================
-// 2. 基本ステージ定義 (STAGES)
-// =============================================================
 
 export const STAGES: Level[] = [
   // Stage 1
@@ -151,13 +38,18 @@ export const STAGES: Level[] = [
   { id: "4-1", stage: 4, step: 1, title: "全キー混合 (ハイライトなし)", keys: "yuhjnmtrgfbvik,edcol.wsxp@;:/\ qaz", homeKey: null, threshold: 80, showHighlight: false },
 ];
 
-// =============================================================
-// 3. ブラインドモード用ステージ定義 (BLIND_STAGES)
-// =============================================================
 
+
+//--------------------------------------------------------------
+// -------------------------------------------------------------
+// 【更新】通常 ⇄ ブラインドが交互に進むフルステージ構成
+// -------------------------------------------------------------
 export const BLIND_STAGES: Level[] = [
-  // Stage 1
-  { id: "b-1-1", stage: 1, step: 1, title: "右手人差し指練習", keys: "yuhjnm", homeKey: "j", threshold: 90, showHighlight: true, isBlind: false },
+  // ==========================================
+  // Stage 1: 各指ごとの練習 (通常 ⇄ ブラインド)
+  // ==========================================
+
+{ id: "b-1-1", stage: 1, step: 1, title: "右手人差し指練習", keys: "yuhjnm", homeKey: "j", threshold: 90, showHighlight: true, isBlind: false },
   { id: "b-1-2", stage: 1, step: 2, title: "右手人差し指練習 (ブラインド)", keys: "yuhjnm", homeKey: "j", threshold: 90, showHighlight: false, isBlind: true },
   { id: "b-1-3", stage: 1, step: 3, title: "左手人差し指練習", keys: "trgfbv", homeKey: "f", threshold: 90, showHighlight: true, isBlind: false },
   { id: "b-1-4", stage: 1, step: 4, title: "左手人差し指練習 (ブラインド)", keys: "trgfbv", homeKey: "f", threshold: 90, showHighlight: false, isBlind: true },
@@ -174,29 +66,43 @@ export const BLIND_STAGES: Level[] = [
   { id: "b-1-15", stage: 1, step: 15, title: "左手小指練習", keys: "qaz", homeKey: "a", threshold: 90, showHighlight: true, isBlind: false },
   { id: "b-1-16", stage: 1, step: 16, title: "左手小指練習 (ブラインド)", keys: "qaz", homeKey: "a", threshold: 90, showHighlight: false, isBlind: true },
 
-  // Stage 2
+  // ==========================================
+  // Stage 2: 混合練習 (通常 ⇄ ブラインド)
+  // ==========================================
   { id: "b-2-1", stage: 2, step: 1, title: "人差し指混合", keys: "yuhjnmtrgfbv", homeKey: null, threshold: 85, showHighlight: true, isBlind: false },
   { id: "b-2-2", stage: 2, step: 2, title: "人差し指混合 (ブラインド)", keys: "yuhjnmtrgfbv", homeKey: null, threshold: 85, showHighlight: false, isBlind: true },
-  { id: "b-2-3", stage: 2, step: 3, title: "中指混合＋人差し指混合", keys: "juhmnyfrgvbtki,dec", homeKey: null, threshold: 85, showHighlight: true, isBlind: false },
-  { id: "b-2-4", stage: 2, step: 4, title: "中指混合＋人差し指混合 (ブラインド)", keys: "juhmnyfrgvbtki,dec", homeKey: null, threshold: 85, showHighlight: false, isBlind: true },
-  { id: "b-2-5", stage: 2, step: 5, title: "薬指混合", keys: "ol.wsx", homeKey: null, threshold: 85, showHighlight: true, isBlind: false },
+  
+  //{ id: "b-2-3", stage: 2, step: 3, title: "中指混合", keys: "ik,edc", homeKey: null, threshold: 85, showHighlight: true, isBlind: false },
+  // 9. 人差し指＋中指混合 (Step 20 に相当)
+//  { id: "f-10-1", stage: 10, step: 1, title: "人差し指＋中指混合", keys: "juhmnyfrgvbtki,dec", homeKey: null, threshold: 90, showHighlight: false, isBlind: true },
+{ id: "b-2-3", stage: 2, step: 3, title: "中指混合＋人差し指混合", keys: "juhmnyfrgvbtki,dec", homeKey: null, threshold: 85, showHighlight: true, isBlind: false },
+  //
+  
+ // { id: "b-2-4", stage: 2, step: 4, title: "中指混合 (ブラインド)", keys: "ik,edc", homeKey: null, threshold: 85, showHighlight: false, isBlind: true },
+  
+ { id: "b-2-4", stage: 2, step: 4, title: "中指混合＋人差し指混合 (ブラインド)", keys: "juhmnyfrgvbtki,dec", homeKey: null, threshold: 85, showHighlight: false, isBlind: true },
+  
+ { id: "b-2-5", stage: 2, step: 5, title: "薬指混合", keys: "ol.wsx", homeKey: null, threshold: 85, showHighlight: true, isBlind: false },
   { id: "b-2-6", stage: 2, step: 6, title: "薬指混合 (ブラインド)", keys: "ol.wsx", homeKey: null, threshold: 85, showHighlight: false, isBlind: true },
   { id: "b-2-7", stage: 2, step: 7, title: "小指混合", keys: "p@;:/\ qaz", homeKey: null, threshold: 85, showHighlight: true, isBlind: false },
   { id: "b-2-8", stage: 2, step: 8, title: "小指混合 (ブラインド)", keys: "p@;:/\ qaz", homeKey: null, threshold: 85, showHighlight: false, isBlind: true },
-  { id: "b-2-9", stage: 2, step: 9, title: "薬指混合＋中指＋人差し指混合", keys: "juhmnyfrgvbtki,declo.swx", homeKey: null, threshold: 85, showHighlight: true, isBlind: false },
-  { id: "b-2-10", stage: 2, step: 10, title: "薬指混合＋中指＋人差し指混合 (ブラインド)", keys: "juhmnyfrgvbtki,declo.swx", homeKey: null, threshold: 85, showHighlight: false, isBlind: true },
-
-  // Stage 3
+{ id: "b-2-9", stage: 2, step: 3, title: "薬指混合＋中指＋人差し指混合", keys: "juhmnyfrgvbtki,declo.swx", homeKey: null, threshold: 85, showHighlight: true, isBlind: false },
+ { id: "b-2-10", stage: 2, step: 4, title: "薬指混合＋中指＋人差し指混合 (ブラインド)", keys: "juhmnyfrgvbtki,declo.swx", homeKey: null, threshold: 85, showHighlight: false, isBlind: true },
+ 
+  // ==========================================
+  // Stage 3: 全キー総合練習 (通常 ⇄ ブラインド)
+  // ==========================================
   { id: "b-3-1", stage: 3, step: 1, title: "全キー混合", keys: "yuhjnmtrgfbvik,edcol.wsxp@;:/\ qaz", homeKey: null, threshold: 80, showHighlight: true, isBlind: false },
   { id: "b-3-2", stage: 3, step: 2, title: "全キー混合 (ブラインド)", keys: "yuhjnmtrgfbvik,edcol.wsxp@;:/\ qaz", homeKey: null, threshold: 80, showHighlight: false, isBlind: true },
-];
+  ];
 
-// =============================================================
-// 4. 各指強化モード用ステージ定義 (FINGER_STAGES)
-// =============================================================
-
+// 各指強化モード用のステージ定義（全8本の指）
 export const FINGER_STAGES: Level[] = [
-  // 右手人差し指
+  
+  
+  // ==========================================
+  // 1. 右手人差し指 (j -> u -> h -> m -> n -> y)
+  // ==========================================
   { id: "f-1-1", stage: 1, step: 1, title: "右手人差し指: Step 1 (j)", keys: "j", homeKey: "j", threshold: 90, showHighlight: false, isBlind: true },
   { id: "f-1-2", stage: 1, step: 2, title: "右手人差し指: Step 2 (j, u)", keys: "ju", homeKey: "j", threshold: 90, showHighlight: false, isBlind: true },
   { id: "f-1-3", stage: 1, step: 3, title: "右手人差し指: Step 3 (j, u, h)", keys: "juh", homeKey: "j", threshold: 90, showHighlight: false, isBlind: true },
@@ -204,7 +110,9 @@ export const FINGER_STAGES: Level[] = [
   { id: "f-1-5", stage: 1, step: 5, title: "右手人差し指: Step 5 (j, u, h, m, n)", keys: "juhmn", homeKey: "j", threshold: 90, showHighlight: false, isBlind: true },
   { id: "f-1-6", stage: 1, step: 6, title: "右手人差し指: Step 6 (j, u, h, m, n, y)", keys: "juhmny", homeKey: "j", threshold: 90, showHighlight: false, isBlind: true },
 
-  // 左手人差し指
+  // ==========================================
+  // 2. 左手人差し指 (f -> r -> g -> v -> b -> t)
+  // ==========================================
   { id: "f-2-1", stage: 2, step: 1, title: "左手人差し指: Step 1 (f)", keys: "f", homeKey: "f", threshold: 90, showHighlight: false, isBlind: true },
   { id: "f-2-2", stage: 2, step: 2, title: "左手人差し指: Step 2 (f, r)", keys: "fr", homeKey: "f", threshold: 90, showHighlight: false, isBlind: true },
   { id: "f-2-3", stage: 2, step: 3, title: "左手人差し指: Step 3 (f, r, g)", keys: "frg", homeKey: "f", threshold: 90, showHighlight: false, isBlind: true },
@@ -212,126 +120,402 @@ export const FINGER_STAGES: Level[] = [
   { id: "f-2-5", stage: 2, step: 5, title: "左手人差し指: Step 5 (f, r, g, v, b)", keys: "frgvb", homeKey: "f", threshold: 90, showHighlight: false, isBlind: true },
   { id: "f-2-6", stage: 2, step: 6, title: "左手人差し指: Step 6 (f, r, g, v, b, t)", keys: "frgvbt", homeKey: "f", threshold: 90, showHighlight: false, isBlind: true },
 
-  // 人差し指左右混合
+// ==========================================
+  // 9. 人差し指左右混合
+  // ==========================================
   { id: "f-9-1", stage: 9, step: 1, title: "人差し指左右混合", keys: "juhmnyfrgvbt", homeKey: null, threshold: 90, showHighlight: false, isBlind: true },
 
-  // 右手中指
+// ==========================================
+  // 3. 右手中指 (k -> i -> ,)
+  // ==========================================
   { id: "f-3-1", stage: 3, step: 1, title: "右手中指: Step 1 (k)", keys: "k", homeKey: "k", threshold: 90, showHighlight: false, isBlind: true },
   { id: "f-3-2", stage: 3, step: 2, title: "右手中指: Step 2 (k, i)", keys: "ki", homeKey: "k", threshold: 90, showHighlight: false, isBlind: true },
   { id: "f-3-3", stage: 3, step: 3, title: "右手中指: Step 3 (k, i, ,)", keys: "ki,", homeKey: "k", threshold: 90, showHighlight: false, isBlind: true },
 
-  // 左手中指
+  // ==========================================
+  // 4. 左手中指 (d -> e -> c)
+  // ==========================================
   { id: "f-4-1", stage: 4, step: 1, title: "左手中指: Step 1 (d)", keys: "d", homeKey: "d", threshold: 90, showHighlight: false, isBlind: true },
   { id: "f-4-2", stage: 4, step: 2, title: "左手中指: Step 2 (d, e)", keys: "de", homeKey: "d", threshold: 90, showHighlight: false, isBlind: true },
   { id: "f-4-3", stage: 4, step: 3, title: "左手中指: Step 3 (d, e, c)", keys: "dec", homeKey: "d", threshold: 90, showHighlight: false, isBlind: true },
 
-  // 人差し指＋中指混合
+  // 9. 人差し指＋中指混合 (Step 20 に相当)
   { id: "f-10-1", stage: 10, step: 1, title: "人差し指＋中指混合", keys: "juhmnyfrgvbtki,dec", homeKey: null, threshold: 90, showHighlight: false, isBlind: true },
 
-  // 右手薬指
+  // ==========================================
+  // 5. 右手薬指 (l -> o -> .)
+  // ==========================================
   { id: "f-5-1", stage: 5, step: 1, title: "右手薬指: Step 1 (l)", keys: "l", homeKey: "l", threshold: 90, showHighlight: false, isBlind: true },
   { id: "f-5-2", stage: 5, step: 2, title: "右手薬指: Step 2 (l, o)", keys: "lo", homeKey: "l", threshold: 90, showHighlight: false, isBlind: true },
   { id: "f-5-3", stage: 5, step: 3, title: "右手薬指: Step 3 (l, o, .)", keys: "lo.", homeKey: "l", threshold: 90, showHighlight: false, isBlind: true },
 
-  // 左手薬指
+  // ==========================================
+  // 6. 左手薬指 (s -> w -> x)
+  // ==========================================
   { id: "f-6-1", stage: 6, step: 1, title: "左手薬指: Step 1 (s)", keys: "s", homeKey: "s", threshold: 90, showHighlight: false, isBlind: true },
   { id: "f-6-2", stage: 6, step: 2, title: "左手薬指: Step 2 (s, w)", keys: "sw", homeKey: "s", threshold: 90, showHighlight: false, isBlind: true },
   { id: "f-6-3", stage: 6, step: 3, title: "左手薬指: Step 3 (s, w, x)", keys: "swx", homeKey: "s", threshold: 90, showHighlight: false, isBlind: true },
 
-  // 人差し指＋中指＋薬指混合
+  // 11. 人差し指＋中指＋薬指混合 (Step 27 に相当)
   { id: "f-11-1", stage: 11, step: 1, title: "人差し指＋中指＋薬指混合", keys: "juhmnyfrgvbtki,declo.swx", homeKey: null, threshold: 90, showHighlight: false, isBlind: true },
 
-  // 右手小指
+  // ==========================================
+  // 7. 右手小指 (; -> p -> /)
+  // ==========================================
   { id: "f-7-1", stage: 7, step: 1, title: "右手小指: Step 1 (;)", keys: ";", homeKey: ";", threshold: 90, showHighlight: false, isBlind: true },
   { id: "f-7-2", stage: 7, step: 2, title: "右手小指: Step 2 (;, p)", keys: ";p", homeKey: ";", threshold: 90, showHighlight: false, isBlind: true },
   { id: "f-7-3", stage: 7, step: 3, title: "右手小指: Step 3 (;, p, /)", keys: ";p/", homeKey: ";", threshold: 90, showHighlight: false, isBlind: true },
 
-  // 左手小指
+  // ==========================================
+  // 8. 左手小指 (a -> q -> z)
+  // ==========================================
   { id: "f-8-1", stage: 8, step: 1, title: "左手小指: Step 1 (a)", keys: "a", homeKey: "a", threshold: 90, showHighlight: false, isBlind: true },
   { id: "f-8-2", stage: 8, step: 2, title: "左手小指: Step 2 (a, q)", keys: "aq", homeKey: "a", threshold: 90, showHighlight: false, isBlind: true },
   { id: "f-8-3", stage: 8, step: 3, title: "左手小指: Step 3 (a, q, z)", keys: "aqz", homeKey: "a", threshold: 90, showHighlight: false, isBlind: true },
 
-  // 全指混合
+  // 12. 全指混合 (Step 34 に相当)
   { id: "f-12-1", stage: 12, step: 1, title: "全指混合 (全キー)", keys: "juhmnyfrgvbtki,declo.swx;p/aqz", homeKey: null, threshold: 90, showHighlight: false, isBlind: true },
+  
 ];
 
-// =============================================================
-// 5. ローマ字・街づくりモード用定義 (ROMAJI_STAGES)
-// =============================================================
+
+// -------------------------------------------------------------
+// 【新規追加】ローマ字タイピング・ゲーム（街づくり）用定義
+// -------------------------------------------------------------
+/*
+export type RomajiWord = {
+  kana: string;    // 例: "ねこ"
+  romaji: string;  // 例: "neko"
+};
+
+export type RomajiLevel = Level & {
+  words: RomajiWord[];
+  rewardBuilding: {
+    id: string;
+    name: string;
+    icon: string; // 絵文字や画像パス
+  };
+};
+*/
+/*
+export const ROMAJI_STAGES: RomajiLevel[] = [
+  {
+    id: "r-1-1",
+    stage: 1,
+    step: 1,
+    title: "あいうえお・基本単語",
+    keys: "aiueo",
+    homeKey: null,
+    threshold: 85,
+    showHighlight: false, // 基本は非表示（ミス時のみ表示）
+    words: [
+      { kana: "いぬ", romaji: "inu" },
+      { kana: "ねこ", romaji: "neko" },
+      { kana: "あめ", romaji: "ame" },
+      { kana: "いえ", romaji: "ie" },
+    ],
+    rewardBuilding: { id: "house_1", name: "小さな家", icon: "🏠" },
+  },
+  {
+    id: "r-1-2",
+    stage: 1,
+    step: 2,
+    title: "かきくけこ・街の自然",
+    keys: "kakikukeko",
+    homeKey: null,
+    threshold: 85,
+    showHighlight: false,
+    words: [
+      { kana: "き", romaji: "ki" },
+      { kana: "かさ", romaji: "kasa" },
+      { kana: "池", romaji: "ike" },
+      { kana: "くも", romaji: "kumo" },
+    ],
+    rewardBuilding: { id: "park_1", name: "緑豊かな公園", icon: "🌳" },
+  },
+  {
+    id: "r-1-3",
+    stage: 1,
+    step: 3,
+    title: "さしすせそ・街の施設",
+    keys: "sashisuseso",
+    homeKey: null,
+    threshold: 85,
+    showHighlight: false,
+    words: [
+      { kana: "すし", romaji: "sushi" },
+      { kana: "さかな", romaji: "sakana" },
+      { kana: "みせ", romaji: "mise" },
+    ],
+    rewardBuilding: { id: "shop_1", name: "パン屋さん", icon: "🍞" },
+  },
+];
+
+*/
+
+export interface RomajiWord {
+  kana: string;
+  romaji: string;
+}
+
+export interface RomajiStage {
+  id: string;
+  stage: number;
+  step: number;
+  title: string;
+  rewardBuilding: {
+    name: string;
+    icon: string;
+  };
+  words: RomajiWord[];
+}
 
 export const ROMAJI_STAGES: RomajiStage[] = [
   // レベル1: 基本の文字 (1文字)
-  makeStage("r-1-1", 1, 1, "あいうえお", { name: "あいうえお", icon: "🎉" }, [
-    { kana: "あ" }, { kana: "い" }, { kana: "う" }, { kana: "え" }, { kana: "お" },
-  ]),
-  makeStage("r-1-2", 1, 2, "かきくけこ", { name: "かきくけこ", icon: "🎉" }, [
-    { kana: "か" }, { kana: "き" }, { kana: "く" }, { kana: "け" }, { kana: "こ" },
-  ]),
-  makeStage("r-1-3", 1, 3, "さしすせそ", { name: "さしすせそ", icon: "🎉" }, [
-    { kana: "さ" }, { kana: "し" }, { kana: "す" }, { kana: "せ" }, { kana: "そ" },
-  ]),
-  makeStage("r-1-4", 1, 4, "たちつてと", { name: "たちつてと", icon: "🎉" }, [
-    { kana: "た" }, { kana: "ち" }, { kana: "つ" }, { kana: "て" }, { kana: "と" },
-  ]),
-  makeStage("r-1-5", 1, 5, "なにぬねの", { name: "なにぬねの", icon: "🎉" }, [
-    { kana: "な" }, { kana: "に" }, { kana: "ぬ" }, { kana: "ね" }, { kana: "の" },
-  ]),
-  makeStage("r-1-6", 1, 6, "はひふへほ", { name: "はひふへほ", icon: "🎉" }, [
-    { kana: "は" }, { kana: "ひ" }, { kana: "ふ" }, { kana: "へ" }, { kana: "ほ" },
-  ]),
-  makeStage("r-1-7", 1, 7, "まみむめも", { name: "まみむめも", icon: "🎉" }, [
-    { kana: "ま" }, { kana: "み" }, { kana: "む" }, { kana: "め" }, { kana: "も" },
-  ]),
-  makeStage("r-1-8", 1, 8, "やゆよ", { name: "やゆよ", icon: "🎉" }, [
-    { kana: "や" }, { kana: "ゆ" }, { kana: "よ" },
-  ]),
-  makeStage("r-1-9", 1, 9, "らりるれろ", { name: "らりるれろ", icon: "🎉" }, [
-    { kana: "ら" }, { kana: "り" }, { kana: "る" }, { kana: "れ" }, { kana: "ろ" },
-  ]),
-  makeStage("r-1-10", 1, 10, "わをん", { name: "わをん", icon: "🎉" }, [
-    { kana: "わ" }, { kana: "を" }, { kana: "ん" },
-  ]),
+  {
+    id: "r-1-1",
+    stage: 1,
+    step: 1,
+    title: "あいうえお",
+    rewardBuilding: { name: "あいうえお", icon: "🎉" },
+    words: [
+      { kana: "あ", romaji: "a" },
+      { kana: "い", romaji: "i" },
+      { kana: "う", romaji: "u" },
+      { kana: "え", romaji: "e" },
+      { kana: "お", romaji: "o" },
+    ],
+  },
+  {
+    id: "r-1-2",
+    stage: 1,
+    step: 2,
+    title: "かきくけこ",
+    rewardBuilding: { name: "かきくけこ", icon: "🎉" },
+    words: [
+      { kana: "か", romaji: "ka" },
+      { kana: "き", romaji: "ki" },
+      { kana: "く", romaji: "ku" },
+      { kana: "け", romaji: "ke" },
+      { kana: "こ", romaji: "ko" },
+    ],
+  },
+  {
+    id: "r-1-3",
+    stage: 1,
+    step: 3,
+    title: "さしすせそ",
+    rewardBuilding: { name: "さしすせそ", icon: "🎉" },
+    words: [
+      { kana: "さ", romaji: "sa" },
+      { kana: "し", romaji: "shi" },
+      { kana: "す", romaji: "su" },
+      { kana: "せ", romaji: "se" },
+      { kana: "そ", romaji: "so" },
+    ],
+  },
+  {
+    id: "r-1-4",
+    stage: 1,
+    step: 4,
+    title: "たちつてと",
+    rewardBuilding: { name: "たちつてと", icon: "🎉" },
+    words: [
+      { kana: "た", romaji: "ta" },
+      { kana: "ち", romaji: "chi" },
+      { kana: "つ", romaji: "tsu" },
+      { kana: "て", romaji: "te" },
+      { kana: "と", romaji: "to" },
+    ],
+  },
+  {
+    id: "r-1-5",
+    stage: 1,
+    step: 5,
+    title: "なにぬねの",
+    rewardBuilding: { name: "なにぬねの", icon: "🎉" },
+    words: [
+      { kana: "な", romaji: "na" },
+      { kana: "に", romaji: "ni" },
+      { kana: "ぬ", romaji: "nu" },
+      { kana: "ね", romaji: "ne" },
+      { kana: "の", romaji: "no" },
+    ],
+  },
+  {
+    id: "r-1-6",
+    stage: 1,
+    step: 6,
+    title: "はひふへほ",
+    rewardBuilding: { name: "はひふへほ", icon: "🎉" },
+    words: [
+      { kana: "は", romaji: "ha" },
+      { kana: "ひ", romaji: "hi" },
+      { kana: "ふ", romaji: "fu" },
+      { kana: "へ", romaji: "he" },
+      { kana: "ほ", romaji: "ho" },
+    ],
+  },
+  {
+    id: "r-1-7",
+    stage: 1,
+    step: 7,
+    title: "まみむめも",
+    rewardBuilding: { name: "まみむめも", icon: "🎉" },
+    words: [
+      { kana: "ま", romaji: "ma" },
+      { kana: "み", romaji: "mi" },
+      { kana: "む", romaji: "mu" },
+      { kana: "め", romaji: "me" },
+      { kana: "も", romaji: "mo" },
+    ],
+  },
+  {
+    id: "r-1-8",
+    stage: 1,
+    step: 8,
+    title: "やゆよ",
+    rewardBuilding: { name: "やゆよ", icon: "🎉" },
+    words: [
+      { kana: "や", romaji: "ya" },
+      { kana: "ゆ", romaji: "yu" },
+      { kana: "よ", romaji: "yo" },
+    ],
+  },
+  {
+    id: "r-1-9",
+    stage: 1,
+    step: 9,
+    title: "らりるれろ",
+    rewardBuilding: { name: "らりるれろ", icon: "🎉" },
+    words: [
+      { kana: "ら", romaji: "ra" },
+      { kana: "り", romaji: "ri" },
+      { kana: "る", romaji: "ru" },
+      { kana: "れ", romaji: "re" },
+      { kana: "ろ", romaji: "ro" },
+    ],
+  },
+  {
+    id: "r-1-10",
+    stage: 1,
+    step: 10,
+    title: "わをん",
+    rewardBuilding: { name: "わをん", icon: "🎉" },
+    words: [
+      { kana: "わ", romaji: "wa" },
+      { kana: "を", romaji: "wo" },
+      { kana: "ん", romaji: "n" },
+    ],
+  },
 
-  // レベル2: 基本の単語 (短め・2~3文字)
-  makeStage("r-2-1", 2, 1, "はじめてのまち", { name: "おうち", icon: "🏠" }, [
-    { kana: "いえ" }, { kana: "かさ" }, { kana: "そら" },
-  ]),
-  makeStage("r-2-2", 2, 2, "しぜんをふやそう", { name: "き", icon: "🌳" }, [
-    { kana: "はな" }, { kana: "もり" }, { kana: "かわ" },
-  ]),
-  makeStage("r-2-3", 2, 3, "たべものやさん", { name: "お店", icon: "🏪" }, [
-    { kana: "パン" }, { kana: "すし" }, { kana: "みせ" },
-  ]),
+
+  // レベル1: 基本の単語 (短め・2~3文字)
+  {
+    id: "r-2-1",
+    stage: 2,
+    step: 1,
+    title: "はじめてのまち",
+    rewardBuilding: { name: "おうち", icon: "🏠" },
+    words: [
+      { kana: "いえ", romaji: "ie" },
+      { kana: "かさ", romaji: "kasa" },
+      { kana: "そら", romaji: "sora" },
+    ],
+  },
+  {
+    id: "r-2-2",
+    stage: 2,
+    step: 2,
+    title: "しぜんをふやそう",
+    rewardBuilding: { name: "き", icon: "🌳" },
+    words: [
+      { kana: "はな", romaji: "hana" },
+      { kana: "もり", romaji: "mori" },
+      { kana: "かわ", romaji: "kawa" },
+    ],
+  },
+  {
+    id: "r-2-3",
+    stage: 2,
+    step: 3,
+    title: "たべものやさん",
+    rewardBuilding: { name: "お店", icon: "🏪" },
+    words: [
+      { kana: "パン", romaji: "pan" },
+      { kana: "すし", romaji: "sushi" },
+      { kana: "みせ", romaji: "mise" },
+    ],
+  },
 
   // レベル2: やや長めの単語・短文 (4~6文字)
-  makeStage("r-2-4", 2, 4, "のりものがはしるまち", { name: "バス", icon: "🚌" }, [
-    { kana: "くるま" }, { kana: "でんしゃ" }, { kana: "ひこうき" },
-  ]),
-  makeStage("r-2-5", 2, 5, "たかいビルをたてよう", { name: "ビル", icon: "🏢" }, [
-    { kana: "えきまえ" }, { kana: "こうえん" }, { kana: "こうじょう" },
-  ]),
+  {
+    id: "r-2-1",
+    stage: 2,
+    step: 1,
+    title: "のりものがはしるまち",
+    rewardBuilding: { name: "バス", icon: "🚌" },
+    words: [
+      { kana: "くるま", romaji: "kuruma" },
+      { kana: "でんしゃ", romaji: "densya" },
+      { kana: "ひこうき", romaji: "hikouki" },
+    ],
+  },
+  {
+    id: "r-2-2",
+    stage: 2,
+    step: 2,
+    title: "たかいビルをたてよう",
+    rewardBuilding: { name: "ビル", icon: "🏢" },
+    words: [
+      { kana: "えきまえ", romaji: "ekimae" },
+      { kana: "こうえん", romaji: "kouen" },
+      { kana: "こうじょう", romaji: "koujou" },
+    ],
+  },
 
   // レベル3: 長い文章・ことば (8文字以上)
-  makeStage("r-3-1", 3, 1, "にぎやかな大都会", { name: "タワー", icon: "🗼" }, [
-    { kana: "たいようがのぼる" },
-    { kana: "きょうもいいてんき" },
-    { kana: "みんなであそぼう" },
-  ]),
-  makeStage("r-3-2", 3, 2, "夢の未来都市", { name: "道路", icon: "🛣" }, [
-    { kana: "タイピングがとくい" },
-    { kana: "すばらしいまちができた" },
-    { kana: "みらいへむかってしゅっぱつ" },
-  ]),
-  makeStage("r-3-3", 3, 3, "宇宙に行くぞ！", { name: "ロケット", icon: "🚀" }, [
-    { kana: "わたしは、タイピングがとくいです。" },
-    { kana: "ぼくは、うちゅうかいはつがしたい。" },
-    { kana: "みんなもたぶん、うちゅうにきょうみをもっているとおもいます。" },
-  ]),
+  {
+    id: "r-3-1",
+    stage: 3,
+    step: 1,
+    title: "にぎやかな大都会",
+    rewardBuilding: { name: "タワー", icon: "🗼" },
+    words: [
+      { kana: "たいようがのぼる", romaji: "taiyouganoboru" },
+      { kana: "きょうもいいてんき", romaji: "kyoumoiitenki" },
+      { kana: "みんなであそぼう", romaji: "minnadeasobou" },
+    ],
+  },
+  {
+    id: "r-3-2",
+    stage: 3,
+    step: 2,
+    title: "夢の未来都市",
+    rewardBuilding: { name: "道路", icon: "🛣" },
+    words: [
+      { kana: "タイピングがとくい", romaji: "taipinguatokui" },
+      { kana: "すばらしいまちができた", romaji: "subarasiimacigadekita" },
+      { kana: "みらいへむかってしゅっぱつ", romaji: "miraihemukattesyuppatu" },
+    ],
+  },
+  {
+    id: "r-3-3",
+    stage: 3,
+    step: 3,
+    title: "宇宙に行くぞ！",
+    rewardBuilding: { name: "ロケット", icon: "🚀" },
+    words: [
+      { kana: "わたしは、タイピングがとくいです。", romaji: "watashiha, taipinguatokuidesu." },
+      { kana: "ぼくは、うちゅうかいはつがしたい。", romaji: "bokoha, uchuukaihatsugashitai." },
+      { kana: "みんなもたぶん、うちゅうにきょうみをもっているとおもいます。", romaji: "minnamoto, uchuuni kyoumiwo motte iru to omoimasu." },
+    ],
+  },
+//<絵文字で絵を入力する🚩>
+
 ];
 
-// =============================================================
-// 6. キーボードレイアウト & 指配置マップ
-// =============================================================
+
 
 export const KEYBOARD_LAYOUT = [
   ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p", "@"],
@@ -360,6 +544,20 @@ export const FINGER_MAPPING: Record<string, string> = {
   // Space
   " ": "thumb"
 };
+/*
+export const FINGER_COLORS: Record<string, string> = {
+  "lp": "bg-pink-200",
+  "lr": "bg-orange-200",
+  "lm": "bg-yellow-200",
+  "li": "bg-green-200",
+  "ri": "bg-blue-200",
+  "rm": "bg-indigo-200",
+  "rl": "bg-purple-200",
+  "rp": "bg-red-200",
+  "thumb": "bg-gray-200"
+};
+*/
+// lib/typing-data.ts 内の FINGER_COLORS を以下に差し替えます
 
 export const FINGER_COLORS: { [key: string]: string } = {
   leftPinky: "bg-pink-100 dark:bg-pink-950 text-pink-700",     // 小指 (q, a, z)
