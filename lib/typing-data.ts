@@ -152,7 +152,9 @@ export const BLIND_STAGES: Level[] = [
   { id: "b-2-6", stage: 2, step: 6, title: "薬指混合 (ブラインド)", keys: "ol.wsx", homeKey: null, threshold: 85, showHighlight: false, isBlind: true },
   { id: "b-2-7", stage: 2, step: 7, title: "小指混合", keys: "p@;:/\ qaz", homeKey: null, threshold: 85, showHighlight: true, isBlind: false },
   { id: "b-2-8", stage: 2, step: 8, title: "小指混合 (ブラインド)", keys: "p@;:/\ qaz", homeKey: null, threshold: 85, showHighlight: false, isBlind: true },
-
+{ id: "b-2-9", stage: 2, step: 3, title: "薬指混合＋中指＋人差し指混合", keys: "juhmnyfrgvbtki,declo.swx", homeKey: null, threshold: 85, showHighlight: true, isBlind: false },
+ { id: "b-2-10", stage: 2, step: 4, title: "薬指混合＋中指＋人差し指混合 (ブラインド)", keys: "juhmnyfrgvbtki,declo.swx", homeKey: null, threshold: 85, showHighlight: false, isBlind: true },
+ 
   // ==========================================
   // Stage 3: 全キー総合練習 (通常 ⇄ ブラインド)
   // ==========================================
