@@ -286,6 +286,14 @@ export default function Home() {
           */}
 
           <Link
+  href="/romaji"
+  className="px-4 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition-colors shadow-md"
+>
+  👈 ローマ字ゲーム
+</Link>
+
+
+          <Link
   href="/finger"
   className="px-4 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition-colors shadow-md"
 >
