@@ -232,7 +232,7 @@ export default function RomajiPracticePage() {
           </div>
         </div>
 
-        {/* 2. 問題表示エリア (コンパクト化) */}
+        {/* 2. 問題表示エリア */}
         <div className="text-center space-y-2 py-6 bg-white rounded-2xl shadow-md border min-h-[160px] flex flex-col justify-center items-center px-4">
           {gameState === "completed" ? (
             <div className="space-y-2">
@@ -243,6 +243,7 @@ export default function RomajiPracticePage() {
                   setCurrentStageIndex(0);
                   setWordIndex(0);
                   setInputRomaji("");
+                  setUnlockedBuildings([]); // 👈 ここで建てた建物をクリア
                   setGameState("waiting");
                 }}
                 className="mt-2 px-5 py-2 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-sm rounded-xl shadow-md transition-transform active:scale-95"
@@ -272,7 +273,7 @@ export default function RomajiPracticePage() {
           )}
         </div>
 
-        {/* 3. ミス時に既存のKeyboardコンポーネントを表示 */}
+        {/* 3. ミス時にキーボード表示 */}
         {gameState === "playing" && showKeyboard && nextChar && (
           <div className="p-3 bg-white border-2 border-red-200 rounded-2xl shadow-lg text-center space-y-2 animate-in fade-in duration-200">
             <p className="text-red-500 font-black text-xs">
