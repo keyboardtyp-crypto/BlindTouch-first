@@ -119,14 +119,17 @@ export default function RomajiPracticePage() {
     }
 
     const key = e.key.toLowerCase();
-    const expectedKey = targetWord.romaji[inputRomaji.length]?.toLowerCase();
+    const nextInput = inputRomaji + key;
 
-    if (key === expectedKey) {
+    // targetWord.romaji (配列) のいずれかのパターンが、nextInput で始まっているか判定
+    const hasMatch = targetWord.romaji.some((pattern) => pattern.startsWith(nextInput));
+
+    if (hasMatch) {
       setShowKeyboard(false);
-      const nextInput = inputRomaji + key;
       setInputRomaji(nextInput);
 
-      if (nextInput === targetWord.romaji) {
+      // 完全一致するパターンがあればクリア
+      if (targetWord.romaji.includes(nextInput)) {
         if (wordIndex + 1 < currentStage.words.length) {
           setWordIndex(wordIndex + 1);
           setInputRomaji("");
@@ -162,7 +165,6 @@ export default function RomajiPracticePage() {
 
             alert(`クリア！「${currentStage.rewardBuilding.name} (${newBuildingIcon})」を獲得しました！`);
 
-            // 💡 ステージ番号（stage）が変わる時だけ絵をクリアする
             if (nextStage.stage !== currentStage.stage) {
               setUnlockedBuildings([]);
               saveProgressLocally(nextStageIndex, []);
@@ -205,7 +207,9 @@ export default function RomajiPracticePage() {
     );
   }
 
-  const nextChar = targetWord?.romaji[inputRomaji.length]?.toLowerCase() || null;
+  // 表示用：最もマッチ度の高いパターンを選択
+  const displayRomaji = targetWord?.romaji.find((p) => p.startsWith(inputRomaji)) || targetWord?.romaji[0] || "";
+  const nextChar = displayRomaji[inputRomaji.length]?.toLowerCase() || null;
 
   return (
     <div
@@ -287,7 +291,7 @@ export default function RomajiPracticePage() {
               <p className="text-4xl font-black text-gray-800">{targetWord?.kana}</p>
               <p className="text-2xl font-mono text-gray-400 tracking-widest break-all max-w-full px-4">
                 <span className="text-emerald-500 font-bold">{inputRomaji}</span>
-                {targetWord?.romaji.slice(inputRomaji.length)}
+                {displayRomaji.slice(inputRomaji.length)}
               </p>
             </>
           )}
@@ -308,6 +312,3 @@ export default function RomajiPracticePage() {
     </div>
   );
 }
-
-
-
