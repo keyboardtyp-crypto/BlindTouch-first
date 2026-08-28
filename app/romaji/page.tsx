@@ -4,14 +4,8 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { ROMAJI_STAGES, RomajiLevel } from "@/lib/typing-data";
+import { Keyboard } from "@/components/keyboard";
 import type { User } from "@supabase/supabase-js";
-
-// キーボードレイアウト定義
-const KEYBOARD_ROWS = [
-  ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p"],
-  ["a", "s", "d", "f", "g", "h", "j", "k", "l"],
-  ["z", "x", "c", "v", "b", "n", "m"],
-];
 
 const playCelebrationSound = () => {
   try {
@@ -108,7 +102,7 @@ export default function RomajiPracticePage() {
   }, []);
 
   const handleKeyDown = async (e: React.KeyboardEvent) => {
-    // 1. スタート待ち画面
+    // 1. スペースキー待ち状態
     if (gameState === "waiting") {
       if (e.code === "Space" || e.key === " ") {
         e.preventDefault();
@@ -136,7 +130,6 @@ export default function RomajiPracticePage() {
       // 単語クリア
       if (nextInput === targetWord.romaji) {
         if (wordIndex + 1 < currentStage.words.length) {
-          // 次の単語へ
           setWordIndex(wordIndex + 1);
           setInputRomaji("");
         } else {
@@ -165,7 +158,6 @@ export default function RomajiPracticePage() {
             );
           }
 
-          // 次のステージの有無を判定
           if (currentStageIndex + 1 < ROMAJI_STAGES.length) {
             alert(`ステージクリア！街に「${currentStage.rewardBuilding.name}」が建設されました！`);
             setCurrentStageIndex(currentStageIndex + 1);
@@ -173,14 +165,12 @@ export default function RomajiPracticePage() {
             setInputRomaji("");
             setGameState("waiting");
           } else {
-            // 全ステージクリア！
             alert(`全ステージ達成！素晴らしい街が完成しました！🎉`);
             setGameState("completed");
           }
         }
       }
     } else {
-      // 1文字キー入力時のみミスとしてキーボードを表示
       if (e.key.length === 1) {
         setShowKeyboard(true);
       }
@@ -195,45 +185,45 @@ export default function RomajiPracticePage() {
     );
   }
 
-  const nextChar = targetWord?.romaji[inputRomaji.length]?.toLowerCase();
+  const nextChar = targetWord?.romaji[inputRomaji.length]?.toLowerCase() || null;
 
   return (
     <div
       ref={containerRef}
-      className="min-h-screen bg-gray-50 flex flex-col items-center py-12 px-4 relative outline-none"
+      className="min-h-screen bg-gray-50 flex flex-col items-center py-6 px-4 relative outline-none"
       onKeyDown={handleKeyDown}
       tabIndex={0}
     >
-      <header className="w-full max-w-4xl flex justify-between items-center mb-8">
+      <header className="w-full max-w-4xl flex justify-between items-center mb-4">
         <div>
-          <h1 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-teal-600 to-emerald-600">
+          <h1 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-teal-600 to-emerald-600">
             ローマ字・街づくりモード 🏘️
           </h1>
-          <p className="text-sm text-gray-500">{user?.email}</p>
+          <p className="text-xs text-gray-500">{user?.email}</p>
         </div>
 
-        <div className="flex gap-4 items-center">
-          <div className="bg-amber-100 border border-amber-300 text-amber-800 px-4 py-2 rounded-2xl font-black text-sm flex items-center gap-1 shadow-sm">
+        <div className="flex gap-3 items-center">
+          <div className="bg-amber-100 border border-amber-300 text-amber-800 px-3 py-1.5 rounded-xl font-black text-xs flex items-center gap-1 shadow-sm">
             <span>⭐</span>
             <span>{romajiPoints} pt</span>
           </div>
 
           <Link
             href="/"
-            className="px-4 py-2 text-xs font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors"
+            className="px-3 py-1.5 text-xs font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors"
           >
             🏠 ホームへ戻る
           </Link>
         </div>
       </header>
 
-      <main className="w-full max-w-4xl space-y-6">
+      <main className="w-full max-w-4xl space-y-4">
         {/* 1. 街づくりエリア */}
-        <div className="p-6 bg-white rounded-3xl shadow-sm border text-center">
-          <h2 className="text-lg font-bold text-gray-700 mb-3">発展させたあなたの街 🏙️</h2>
-          <div className="flex justify-center gap-4 text-5xl h-20 items-center bg-emerald-50 rounded-2xl border border-emerald-100 p-2">
+        <div className="p-3 bg-white rounded-2xl shadow-sm border text-center">
+          <h2 className="text-xs font-bold text-gray-500 mb-1">発展させたあなたの街 🏙️</h2>
+          <div className="flex justify-center gap-3 text-3xl h-12 items-center bg-emerald-50 rounded-xl border border-emerald-100 px-2">
             {unlockedBuildings.length === 0 ? (
-              <span className="text-sm text-emerald-600 font-medium">
+              <span className="text-xs text-emerald-600 font-medium">
                 ステージをクリアして新しい建物を建てよう！
               </span>
             ) : (
@@ -242,12 +232,12 @@ export default function RomajiPracticePage() {
           </div>
         </div>
 
-        {/* 2. 問題表示エリア */}
-        <div className="text-center space-y-4 py-12 bg-white rounded-3xl shadow-md border min-h-[260px] flex flex-col justify-center items-center">
+        {/* 2. 問題表示エリア (コンパクト化) */}
+        <div className="text-center space-y-2 py-6 bg-white rounded-2xl shadow-md border min-h-[160px] flex flex-col justify-center items-center px-4">
           {gameState === "completed" ? (
-            <div className="space-y-4">
-              <h2 className="text-3xl font-black text-emerald-600">🎉 全ステージ達成！</h2>
-              <p className="text-gray-600 font-bold">すべてのローマ字問題をクリアしました！</p>
+            <div className="space-y-2">
+              <h2 className="text-2xl font-black text-emerald-600">🎉 全ステージ達成！</h2>
+              <p className="text-xs text-gray-600 font-bold">すべてのローマ字問題をクリアしました！</p>
               <button
                 onClick={() => {
                   setCurrentStageIndex(0);
@@ -255,26 +245,26 @@ export default function RomajiPracticePage() {
                   setInputRomaji("");
                   setGameState("waiting");
                 }}
-                className="mt-4 px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-2xl shadow-lg transition-transform active:scale-95"
+                className="mt-2 px-5 py-2 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-sm rounded-xl shadow-md transition-transform active:scale-95"
               >
                 最初からもう一度遊ぶ 🔄
               </button>
             </div>
           ) : gameState === "waiting" ? (
-            <div className="space-y-3 animate-pulse">
-              <p className="text-sm font-bold text-emerald-600 tracking-wider">
+            <div className="space-y-2 animate-pulse">
+              <p className="text-xs font-bold text-emerald-600 tracking-wider">
                 STAGE {currentStage?.stage}-{currentStage?.step}: {currentStage?.title}
               </p>
-              <p className="text-3xl font-black text-gray-700">スペースキーを押してスタート！</p>
-              <p className="text-sm text-gray-400">⌨️ キーボードの [ Space ] をおしてね</p>
+              <p className="text-2xl font-black text-gray-700">スペースキーを押してスタート！</p>
+              <p className="text-xs text-gray-400">⌨️ キーボードの [ Space ] をおしてね</p>
             </div>
           ) : (
             <>
-              <p className="text-sm font-bold text-emerald-600 tracking-wider">
+              <p className="text-xs font-bold text-emerald-600 tracking-wider">
                 STAGE {currentStage.stage}-{currentStage.step}: {currentStage.title}
               </p>
-              <p className="text-5xl font-black text-gray-800">{targetWord?.kana}</p>
-              <p className="text-3xl font-mono text-gray-400 tracking-widest">
+              <p className="text-4xl font-black text-gray-800">{targetWord?.kana}</p>
+              <p className="text-2xl font-mono text-gray-400 tracking-widest">
                 <span className="text-emerald-500 font-bold">{inputRomaji}</span>
                 {targetWord?.romaji.slice(inputRomaji.length)}
               </p>
@@ -282,34 +272,18 @@ export default function RomajiPracticePage() {
           )}
         </div>
 
-        {/* 3. ミス時にキーボード全体を表示＆押すべきキーをハイライト */}
+        {/* 3. ミス時に既存のKeyboardコンポーネントを表示 */}
         {gameState === "playing" && showKeyboard && nextChar && (
-          <div className="p-6 bg-white border-2 border-red-200 rounded-3xl shadow-lg text-center space-y-3 animate-in fade-in duration-200">
-            <p className="text-red-500 font-black text-sm">
-              間違えました！緑色に光っているキーを押してください 💡
+          <div className="p-3 bg-white border-2 border-red-200 rounded-2xl shadow-lg text-center space-y-2 animate-in fade-in duration-200">
+            <p className="text-red-500 font-black text-xs">
+              間違えました！青く光っているキーを押してください 💡
             </p>
-
-            {/* キーボードUI */}
-            <div className="inline-block bg-gray-100 p-4 rounded-2xl border border-gray-200 space-y-2">
-              {KEYBOARD_ROWS.map((row, rowIndex) => (
-                <div key={rowIndex} className="flex justify-center gap-1.5">
-                  {row.map((keyChar) => {
-                    const isTarget = keyChar === nextChar;
-                    return (
-                      <div
-                        key={keyChar}
-                        className={`w-10 h-10 flex items-center justify-center font-mono font-bold rounded-xl text-lg transition-all ${
-                          isTarget
-                            ? "bg-emerald-500 text-white ring-4 ring-emerald-300 scale-110 shadow-lg animate-bounce"
-                            : "bg-white text-gray-600 border border-gray-200 shadow-sm"
-                        }`}
-                      >
-                        {keyChar.toUpperCase()}
-                      </div>
-                    );
-                  })}
-                </div>
-              ))}
+            <div className="scale-90 origin-top">
+              <Keyboard
+                targetKey={nextChar}
+                highlightTarget={true}
+                homeKey={null}
+              />
             </div>
           </div>
         )}
