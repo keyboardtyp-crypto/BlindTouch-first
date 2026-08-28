@@ -67,7 +67,7 @@ export default function RomajiPracticePage() {
     }
   }, [loading, gameState]);
 
-  // 1. 起動時に前回の進捗（ステージ番号・絵・ポイント）を復元
+  // 1. 起動時に前回の進捗を復元
   useEffect(() => {
     const savedPoints = localStorage.getItem("romaji_practice_points");
     if (savedPoints) setRomajiPoints(parseInt(savedPoints, 10));
@@ -95,7 +95,7 @@ export default function RomajiPracticePage() {
     });
   }, []);
 
-  // 2. ステージや獲得した絵が更新されたらローカルストレージに自動保存
+  // 2. ローカルストレージ保存関数
   const saveProgressLocally = (stageIdx: number, buildings: string[]) => {
     localStorage.setItem("romaji_current_stage", stageIdx.toString());
     localStorage.setItem("romaji_unlocked_buildings", JSON.stringify(buildings));
@@ -131,7 +131,7 @@ export default function RomajiPracticePage() {
           setWordIndex(wordIndex + 1);
           setInputRomaji("");
         } else {
-          // 🎉 ステージクリア処理
+          // 🎉 ステップクリア処理
           playCelebrationSound();
 
           const newPoints = romajiPoints + 50;
@@ -140,6 +140,7 @@ export default function RomajiPracticePage() {
 
           const newBuildingIcon = currentStage.rewardBuilding.icon;
           const updatedBuildings = [...unlockedBuildings, newBuildingIcon];
+          setUnlockedBuildings(updatedBuildings);
 
           if (user) {
             const jstNow = getJSTDateString();
@@ -156,18 +157,23 @@ export default function RomajiPracticePage() {
           }
 
           if (currentStageIndex + 1 < ROMAJI_STAGES.length) {
-            alert(`ステージクリア！「${currentStage.rewardBuilding.name} (${newBuildingIcon})」を獲得しました！`);
-
             const nextStageIndex = currentStageIndex + 1;
-            // 💡 次のステージへ進む際、絵（unlockedBuildings）をクリアして初期化します
+            const nextStage = ROMAJI_STAGES[nextStageIndex];
+
+            alert(`クリア！「${currentStage.rewardBuilding.name} (${newBuildingIcon})」を獲得しました！`);
+
+            // 💡 ステージ番号（stage）が変わる時だけ絵をクリアする
+            if (nextStage.stage !== currentStage.stage) {
+              setUnlockedBuildings([]);
+              saveProgressLocally(nextStageIndex, []);
+            } else {
+              saveProgressLocally(nextStageIndex, updatedBuildings);
+            }
+
             setCurrentStageIndex(nextStageIndex);
             setWordIndex(0);
             setInputRomaji("");
-            setUnlockedBuildings([]); 
             setGameState("waiting");
-
-            // 進捗を保存（絵は空で保存）
-            saveProgressLocally(nextStageIndex, []);
           } else {
             alert(`全ステージクリア！素晴らしい達成度です！🎉`);
             setGameState("completed");
@@ -232,10 +238,10 @@ export default function RomajiPracticePage() {
       </header>
 
       <main className="w-full max-w-4xl space-y-4">
-        {/* 1. 現在のステージで獲得した絵の表示エリア */}
+        {/* 1. 現在のステージであつめた絵 */}
         <div className="p-3 bg-white rounded-2xl shadow-sm border text-center">
           <h2 className="text-xs font-bold text-gray-500 mb-1">
-            STAGE {currentStage?.stage}-{currentStage?.step} であつめた絵 🏙️
+            STAGE {currentStage?.stage} であつめた絵 🏙️
           </h2>
           <div className="flex justify-center flex-wrap gap-3 text-3xl min-h-[48px] items-center bg-emerald-50 rounded-xl border border-emerald-100 p-2">
             {unlockedBuildings.length === 0 ? (
