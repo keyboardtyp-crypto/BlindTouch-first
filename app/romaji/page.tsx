@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { ROMAJI_STAGES, RomajiLevel } from "@/lib/typing-data";
+import { ROMAJI_STAGES, RomajiStage } from "@/lib/typing-data";
 import { Keyboard } from "@/components/Keyboard";
 import type { User } from "@supabase/supabase-js";
 
@@ -47,7 +47,6 @@ export default function RomajiPracticePage() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // ゲーム状態 ("waiting" | "playing" | "completed")
   const [gameState, setGameState] = useState<"waiting" | "playing" | "completed">("waiting");
   const [currentStageIndex, setCurrentStageIndex] = useState(0);
   const [wordIndex, setWordIndex] = useState(0);
@@ -58,7 +57,8 @@ export default function RomajiPracticePage() {
 
   const containerRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
-  const currentStage: RomajiLevel = ROMAJI_STAGES[currentStageIndex];
+  
+  const currentStage: RomajiStage = ROMAJI_STAGES[currentStageIndex];
   const targetWord = currentStage?.words?.[wordIndex];
 
   useEffect(() => {
@@ -84,7 +84,7 @@ export default function RomajiPracticePage() {
         setUnlockedBuildings(Array.from(new Set(buildings)));
       }
     } catch (e) {
-      console.error("進捗のロードエラー:", e);
+      console.error("進捗ロードエラー:", e);
     }
   };
 
@@ -102,7 +102,6 @@ export default function RomajiPracticePage() {
   }, []);
 
   const handleKeyDown = async (e: React.KeyboardEvent) => {
-    // 1. スペースキー待ち状態
     if (gameState === "waiting") {
       if (e.code === "Space" || e.key === " ") {
         e.preventDefault();
@@ -127,21 +126,21 @@ export default function RomajiPracticePage() {
       const nextInput = inputRomaji + key;
       setInputRomaji(nextInput);
 
-      // 単語クリア
       if (nextInput === targetWord.romaji) {
         if (wordIndex + 1 < currentStage.words.length) {
           setWordIndex(wordIndex + 1);
           setInputRomaji("");
         } else {
-          // 🎉 ステージクリア
+          // 🎉 ステージクリア処理
           playCelebrationSound();
 
           const newPoints = romajiPoints + 50;
           setRomajiPoints(newPoints);
           localStorage.setItem("romaji_practice_points", newPoints.toString());
 
+          // 新しい建物を街に追加
           const newBuildingIcon = currentStage.rewardBuilding.icon;
-          const updatedBuildings = Array.from(new Set([...unlockedBuildings, newBuildingIcon]));
+          const updatedBuildings = [...unlockedBuildings, newBuildingIcon];
           setUnlockedBuildings(updatedBuildings);
 
           if (user) {
@@ -159,13 +158,13 @@ export default function RomajiPracticePage() {
           }
 
           if (currentStageIndex + 1 < ROMAJI_STAGES.length) {
-            alert(`ステージクリア！街に「${currentStage.rewardBuilding.name}」が建設されました！`);
+            alert(`ステージクリア！街に「${currentStage.rewardBuilding.name} (${newBuildingIcon})」が追加されました！`);
             setCurrentStageIndex(currentStageIndex + 1);
             setWordIndex(0);
             setInputRomaji("");
             setGameState("waiting");
           } else {
-            alert(`全ステージ達成！素晴らしい街が完成しました！🎉`);
+            alert(`全ステージクリア！素晴らしい街が完成しました！🎉`);
             setGameState("completed");
           }
         }
@@ -218,16 +217,16 @@ export default function RomajiPracticePage() {
       </header>
 
       <main className="w-full max-w-4xl space-y-4">
-        {/* 1. 街づくりエリア */}
+        {/* 1. 街づくり表示エリア (絵が横に並んで増えていく) */}
         <div className="p-3 bg-white rounded-2xl shadow-sm border text-center">
           <h2 className="text-xs font-bold text-gray-500 mb-1">発展させたあなたの街 🏙️</h2>
-          <div className="flex justify-center gap-3 text-3xl h-12 items-center bg-emerald-50 rounded-xl border border-emerald-100 px-2">
+          <div className="flex justify-center flex-wrap gap-3 text-3xl min-h-[48px] items-center bg-emerald-50 rounded-xl border border-emerald-100 p-2">
             {unlockedBuildings.length === 0 ? (
               <span className="text-xs text-emerald-600 font-medium">
-                ステージをクリアして新しい建物を建てよう！
+                ステージをクリアして絵（建物・乗り物）を増やしていこう！
               </span>
             ) : (
-              unlockedBuildings.map((icon, i) => <span key={i}>{icon}</span>)
+              unlockedBuildings.map((icon, i) => <span key={i} className="animate-pop">{icon}</span>)
             )}
           </div>
         </div>
@@ -243,7 +242,7 @@ export default function RomajiPracticePage() {
                   setCurrentStageIndex(0);
                   setWordIndex(0);
                   setInputRomaji("");
-                  setUnlockedBuildings([]); // 👈 ここで建てた建物をクリア
+                  setUnlockedBuildings([]);
                   setGameState("waiting");
                 }}
                 className="mt-2 px-5 py-2 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-sm rounded-xl shadow-md transition-transform active:scale-95"
@@ -265,7 +264,7 @@ export default function RomajiPracticePage() {
                 STAGE {currentStage.stage}-{currentStage.step}: {currentStage.title}
               </p>
               <p className="text-4xl font-black text-gray-800">{targetWord?.kana}</p>
-              <p className="text-2xl font-mono text-gray-400 tracking-widest">
+              <p className="text-2xl font-mono text-gray-400 tracking-widest break-all max-w-full px-4">
                 <span className="text-emerald-500 font-bold">{inputRomaji}</span>
                 {targetWord?.romaji.slice(inputRomaji.length)}
               </p>
@@ -273,7 +272,7 @@ export default function RomajiPracticePage() {
           )}
         </div>
 
-        {/* 3. ミス時にキーボード表示 */}
+        {/* 3. ミス時のキーボードガイド */}
         {gameState === "playing" && showKeyboard && nextChar && (
           <div className="p-3 bg-white border-2 border-red-200 rounded-2xl shadow-lg text-center space-y-2 animate-in fade-in duration-200">
             <p className="text-red-500 font-black text-xs">

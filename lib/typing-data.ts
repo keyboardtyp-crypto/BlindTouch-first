@@ -182,7 +182,7 @@ export const FINGER_STAGES: Level[] = [
 // -------------------------------------------------------------
 // 【新規追加】ローマ字タイピング・ゲーム（街づくり）用定義
 // -------------------------------------------------------------
-
+/*
 export type RomajiWord = {
   kana: string;    // 例: "ねこ"
   romaji: string;  // 例: "neko"
@@ -196,7 +196,8 @@ export type RomajiLevel = Level & {
     icon: string; // 絵文字や画像パス
   };
 };
-
+*/
+/*
 export const ROMAJI_STAGES: RomajiLevel[] = [
   {
     id: "r-1-1",
@@ -250,9 +251,269 @@ export const ROMAJI_STAGES: RomajiLevel[] = [
   },
 ];
 
+*/
+
+export interface RomajiWord {
+  kana: string;
+  romaji: string;
+}
+
+export interface RomajiStage {
+  id: string;
+  stage: number;
+  step: number;
+  title: string;
+  rewardBuilding: {
+    name: string;
+    icon: string;
+  };
+  words: RomajiWord[];
+}
+
+export const ROMAJI_STAGES: RomajiStage[] = [
+  // レベル1: 基本の文字 (1文字)
+  {
+    id: "r-1-1",
+    stage: 1,
+    step: 1,
+    title: "あいうえお",
+    rewardBuilding: { name: "あいうえお", icon: "🎉" },
+    words: [
+      { kana: "あ", romaji: "a" },
+      { kana: "い", romaji: "i" },
+      { kana: "う", romaji: "u" },
+      { kana: "え", romaji: "e" },
+      { kana: "お", romaji: "o" },
+    ],
+  },
+  {
+    id: "r-1-2",
+    stage: 1,
+    step: 2,
+    title: "かきくけこ",
+    rewardBuilding: { name: "かきくけこ", icon: "🎉" },
+    words: [
+      { kana: "か", romaji: "ka" },
+      { kana: "き", romaji: "ki" },
+      { kana: "く", romaji: "ku" },
+      { kana: "け", romaji: "ke" },
+      { kana: "こ", romaji: "ko" },
+    ],
+  },
+  {
+    id: "r-1-3",
+    stage: 1,
+    step: 3,
+    title: "さしすせそ",
+    rewardBuilding: { name: "さしすせそ", icon: "🎉" },
+    words: [
+      { kana: "さ", romaji: "sa" },
+      { kana: "し", romaji: "shi" },
+      { kana: "す", romaji: "su" },
+      { kana: "せ", romaji: "se" },
+      { kana: "そ", romaji: "so" },
+    ],
+  },
+  {
+    id: "r-1-4",
+    stage: 1,
+    step: 4,
+    title: "たちつてと",
+    rewardBuilding: { name: "たちつてと", icon: "🎉" },
+    words: [
+      { kana: "た", romaji: "ta" },
+      { kana: "ち", romaji: "chi" },
+      { kana: "つ", romaji: "tsu" },
+      { kana: "て", romaji: "te" },
+      { kana: "と", romaji: "to" },
+    ],
+  },
+  {
+    id: "r-1-5",
+    stage: 1,
+    step: 5,
+    title: "なにぬねの",
+    rewardBuilding: { name: "なにぬねの", icon: "🎉" },
+    words: [
+      { kana: "な", romaji: "na" },
+      { kana: "に", romaji: "ni" },
+      { kana: "ぬ", romaji: "nu" },
+      { kana: "ね", romaji: "ne" },
+      { kana: "の", romaji: "no" },
+    ],
+  },
+  {
+    id: "r-1-6",
+    stage: 1,
+    step: 6,
+    title: "はひふへほ",
+    rewardBuilding: { name: "はひふへほ", icon: "🎉" },
+    words: [
+      { kana: "は", romaji: "ha" },
+      { kana: "ひ", romaji: "hi" },
+      { kana: "ふ", romaji: "fu" },
+      { kana: "へ", romaji: "he" },
+      { kana: "ほ", romaji: "ho" },
+    ],
+  },
+  {
+    id: "r-1-7",
+    stage: 1,
+    step: 7,
+    title: "まみむめも",
+    rewardBuilding: { name: "まみむめも", icon: "🎉" },
+    words: [
+      { kana: "ま", romaji: "ma" },
+      { kana: "み", romaji: "mi" },
+      { kana: "む", romaji: "mu" },
+      { kana: "め", romaji: "me" },
+      { kana: "も", romaji: "mo" },
+    ],
+  },
+  {
+    id: "r-1-8",
+    stage: 1,
+    step: 8,
+    title: "やゆよ",
+    rewardBuilding: { name: "やゆよ", icon: "🎉" },
+    words: [
+      { kana: "や", romaji: "ya" },
+      { kana: "ゆ", romaji: "yu" },
+      { kana: "よ", romaji: "yo" },
+    ],
+  },
+  {
+    id: "r-1-9",
+    stage: 1,
+    step: 9,
+    title: "らりるれろ",
+    rewardBuilding: { name: "らりるれろ", icon: "🎉" },
+    words: [
+      { kana: "ら", romaji: "ra" },
+      { kana: "り", romaji: "ri" },
+      { kana: "る", romaji: "ru" },
+      { kana: "れ", romaji: "re" },
+      { kana: "ろ", romaji: "ro" },
+    ],
+  },
+  {
+    id: "r-1-10",
+    stage: 1,
+    step: 10,
+    title: "わをん",
+    rewardBuilding: { name: "わをん", icon: "🎉" },
+    words: [
+      { kana: "わ", romaji: "wa" },
+      { kana: "を", romaji: "wo" },
+      { kana: "ん", romaji: "n" },
+    ],
+  },
 
 
+  // レベル1: 基本の単語 (短め・2~3文字)
+  {
+    id: "r-2-1",
+    stage: 2,
+    step: 1,
+    title: "はじめてのまち",
+    rewardBuilding: { name: "おうち", icon: "🏠" },
+    words: [
+      { kana: "いえ", romaji: "ie" },
+      { kana: "かさ", romaji: "kasa" },
+      { kana: "そら", romaji: "sora" },
+    ],
+  },
+  {
+    id: "r-2-2",
+    stage: 2,
+    step: 2,
+    title: "しぜんをふやそう",
+    rewardBuilding: { name: "き", icon: "🌳" },
+    words: [
+      { kana: "はな", romaji: "hana" },
+      { kana: "もり", romaji: "mori" },
+      { kana: "かわ", romaji: "kawa" },
+    ],
+  },
+  {
+    id: "r-2-3",
+    stage: 2,
+    step: 3,
+    title: "たべものやさん",
+    rewardBuilding: { name: "お店", icon: "🏪" },
+    words: [
+      { kana: "パン", romaji: "pan" },
+      { kana: "すし", romaji: "sushi" },
+      { kana: "みせ", romaji: "mise" },
+    ],
+  },
 
+  // レベル2: やや長めの単語・短文 (4~6文字)
+  {
+    id: "r-2-1",
+    stage: 2,
+    step: 1,
+    title: "のりものがはしるまち",
+    rewardBuilding: { name: "バス", icon: "🚌" },
+    words: [
+      { kana: "くるま", romaji: "kuruma" },
+      { kana: "でんしゃ", romaji: "densya" },
+      { kana: "ひこうき", romaji: "hikouki" },
+    ],
+  },
+  {
+    id: "r-2-2",
+    stage: 2,
+    step: 2,
+    title: "たかいビルをたてよう",
+    rewardBuilding: { name: "ビル", icon: "🏢" },
+    words: [
+      { kana: "えきまえ", romaji: "ekimae" },
+      { kana: "こうえん", romaji: "kouen" },
+      { kana: "こうじょう", romaji: "koujou" },
+    ],
+  },
+
+  // レベル3: 長い文章・ことば (8文字以上)
+  {
+    id: "r-3-1",
+    stage: 3,
+    step: 1,
+    title: "にぎやかな大都会",
+    rewardBuilding: { name: "タワー", icon: "🗼" },
+    words: [
+      { kana: "たいようがのぼる", romaji: "taiyouganoboru" },
+      { kana: "きょうもいいてんき", romaji: "kyoumoiitenki" },
+      { kana: "みんなであそぼう", romaji: "minnadeasobou" },
+    ],
+  },
+  {
+    id: "r-3-2",
+    stage: 3,
+    step: 2,
+    title: "夢の未来都市",
+    rewardBuilding: { name: "道路", icon: "🛣" },
+    words: [
+      { kana: "タイピングがとくい", romaji: "taipinguatokui" },
+      { kana: "すばらしいまちができた", romaji: "subarasiimacigadekita" },
+      { kana: "みらいへむかってしゅっぱつ", romaji: "miraihemukattesyuppatu" },
+    ],
+  },
+  {
+    id: "r-3-3",
+    stage: 3,
+    step: 3,
+    title: "宇宙に行くぞ！",
+    rewardBuilding: { name: "ロケット", icon: "🚀" },
+    words: [
+      { kana: "わたしは、タイピングがとくいです。", romaji: "watashiha, taipinguatokuidesu." },
+      { kana: "ぼくは、うちゅうかいはつがしたい。", romaji: "bokoha, uchuukaihatsugashitai." },
+      { kana: "みんなもたぶん、うちゅうにきょうみをもっているとおもいます。", romaji: "minnamoto, uchuuni kyoumiwo motte iru to omoimasu." },
+    ],
+  },
+//<絵文字で絵を入力する🚩>
+
+];
 
 
 
