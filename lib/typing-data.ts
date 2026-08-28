@@ -270,7 +270,7 @@ export function generateRomajiPatterns(kana: string): string[] {
 
 
 
-
+/*
 // 簡単入力用のヘルパー関数
 function makeStage(
   id: string,
@@ -292,6 +292,9 @@ function makeStage(
     })),
   };
 }
+*/
+
+
 
 // =============================================================
 // 2. 基本ステージ定義 (STAGES)
@@ -425,6 +428,8 @@ export const FINGER_STAGES: Level[] = [
   { id: "f-12-1", stage: 12, step: 1, title: "全指混合 (全キー)", keys: "juhmnyfrgvbtki,declo.swx;p/aqz", homeKey: null, threshold: 90, showHighlight: false, isBlind: true },
 ];
 
+
+/*
 // =============================================================
 // 5. ローマ字・街づくりモード用定義 (ROMAJI_STAGES)
 // =============================================================
@@ -498,7 +503,7 @@ export const ROMAJI_STAGES: RomajiStage[] = [
     { kana: "みんなもたぶん、うちゅうにきょうみをもっているとおもいます。" },
   ]),
 ];
-
+*/
 // =============================================================
 // 6. キーボードレイアウト & 指配置マップ
 // =============================================================

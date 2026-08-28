@@ -3,7 +3,9 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { ROMAJI_STAGES, RomajiStage } from "@/lib/typing-data";
+//import { ROMAJI_STAGES, RomajiStage } from "@/lib/typing-data";
+import { RomajiStage } from "@/lib/typing-data";
+import { ROMAJI_STAGES } from "@/lib/romaji-mondai";
 import { Keyboard } from "@/components/Keyboard";
 import type { User } from "@supabase/supabase-js";
 
