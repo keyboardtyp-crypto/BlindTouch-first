@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { ROMAJI_STAGES, RomajiLevel } from "@/lib/typing-data";
@@ -46,7 +46,8 @@ export default function RomajiPracticePage() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // ゲーム状態管理
+  // ゲーム状態管理 ("waiting" = スペースキー待ち, "playing" = プレイ中)
+  const [gameState, setGameState] = useState<"waiting" | "playing">("waiting");
   const [currentStageIndex, setCurrentStageIndex] = useState(0);
   const [wordIndex, setWordIndex] = useState(0);
   const [inputRomaji, setInputRomaji] = useState("");
@@ -56,11 +57,19 @@ export default function RomajiPracticePage() {
   // ポイント管理
   const [romajiPoints, setRomajiPoints] = useState(0);
 
+  const containerRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
   const currentStage: RomajiLevel = ROMAJI_STAGES[currentStageIndex];
   const targetWord = currentStage?.words?.[wordIndex];
 
-  // 1. Supabaseから進捗とアンロックされた建物をロード
+  // コンテナへの自動フォーカス処理
+  useEffect(() => {
+    if (!loading && containerRef.current) {
+      containerRef.current.focus();
+    }
+  }, [loading, gameState]);
+
+  // Supabaseから進捗をロード
   const loadUserProgress = async (userId: string) => {
     try {
       const { data, error } = await supabase
@@ -75,7 +84,6 @@ export default function RomajiPracticePage() {
 
       if (data && data.length > 0) {
         const buildings = data.flatMap((row) => row.unlocked_buildings || []);
-        // 重複を除去してセット
         setUnlockedBuildings(Array.from(new Set(buildings)));
       }
     } catch (e) {
@@ -96,12 +104,29 @@ export default function RomajiPracticePage() {
     });
   }, []);
 
-  // キー入力イベント
+  // キー入力処理
   const handleKeyDown = async (e: React.KeyboardEvent) => {
+    // 1. スタート待ちの場合：スペースキー入力で開始
+    if (gameState === "waiting") {
+      if (e.code === "Space" || e.key === " ") {
+        e.preventDefault();
+        setGameState("playing");
+        setInputRomaji("");
+        setShowKeyboard(false);
+      }
+      return;
+    }
+
+    // 2. プレイ中の場合
     if (!targetWord) return;
 
+    // スクロール等の標準挙動を防止
+    if (e.key === " " || e.code === "Space") {
+      e.preventDefault();
+    }
+
     const key = e.key.toLowerCase();
-    const expectedKey = targetWord.romaji[inputRomaji.length];
+    const expectedKey = targetWord.romaji[inputRomaji.length]?.toLowerCase();
 
     if (key === expectedKey) {
       setShowKeyboard(false);
@@ -117,17 +142,14 @@ export default function RomajiPracticePage() {
           // 🎉 ステージクリア処理
           playCelebrationSound();
 
-          // ポイント加算
           const newPoints = romajiPoints + 50;
           setRomajiPoints(newPoints);
           localStorage.setItem("romaji_practice_points", newPoints.toString());
 
-          // 街の建物追加
           const newBuildingIcon = currentStage.rewardBuilding.icon;
           const updatedBuildings = Array.from(new Set([...unlockedBuildings, newBuildingIcon]));
           setUnlockedBuildings(updatedBuildings);
 
-          // Supabaseへ進捗更新
           if (user) {
             const jstNow = getJSTDateString();
             await supabase.from("user_romaji_progress").upsert(
@@ -144,17 +166,23 @@ export default function RomajiPracticePage() {
 
           alert(`ステージクリア！街に「${currentStage.rewardBuilding.name}」が建設されました！`);
 
-          // 次のステージへ移行（あれば）
+          // 次のステージへ移行（次のステージもスペースキー待ちからスタート）
           if (currentStageIndex + 1 < ROMAJI_STAGES.length) {
             setCurrentStageIndex(currentStageIndex + 1);
             setWordIndex(0);
             setInputRomaji("");
+            setGameState("waiting");
+          } else {
+            setGameState("waiting");
           }
         }
       }
     } else {
-      // ミス発生時のみキーボード表示
-      setShowKeyboard(true);
+      // 誤入力時のみキーボード（ヒント）表示
+      // ShiftキーやAltキーなどの制御キー単体押下は無視
+      if (e.key.length === 1) {
+        setShowKeyboard(true);
+      }
     }
   };
 
@@ -166,8 +194,11 @@ export default function RomajiPracticePage() {
     );
   }
 
+  const nextChar = targetWord?.romaji[inputRomaji.length];
+
   return (
     <div
+      ref={containerRef}
       className="min-h-screen bg-gray-50 flex flex-col items-center py-12 px-4 relative outline-none"
       onKeyDown={handleKeyDown}
       tabIndex={0}
@@ -205,30 +236,40 @@ export default function RomajiPracticePage() {
                 ステージをクリアして新しい建物を建てよう！
               </span>
             ) : (
-              unlockedBuildings.map((icon, i) => <span key={i} className="animate-pop">{icon}</span>)
+              unlockedBuildings.map((icon, i) => <span key={i}>{icon}</span>)
             )}
           </div>
         </div>
 
         {/* 2. タイピング問題表示 */}
-        <div className="text-center space-y-4 py-12 bg-white rounded-3xl shadow-md border">
+        <div className="text-center space-y-4 py-12 bg-white rounded-3xl shadow-md border min-h-[260px] flex flex-col justify-center items-center">
           <p className="text-sm font-bold text-emerald-600 tracking-wider">
             STAGE {currentStage.stage}-{currentStage.step}: {currentStage.title}
           </p>
-          <p className="text-5xl font-black text-gray-800">{targetWord?.kana}</p>
-          <p className="text-3xl font-mono text-gray-400 tracking-widest">
-            <span className="text-emerald-500 font-bold">{inputRomaji}</span>
-            {targetWord?.romaji.slice(inputRomaji.length)}
-          </p>
+
+          {gameState === "waiting" ? (
+            <div className="space-y-3 animate-pulse">
+              <p className="text-3xl font-black text-gray-700">スペースキーを押してスタート！</p>
+              <p className="text-sm text-gray-400">⌨️ キーボードの [ Space ] をおしてね</p>
+            </div>
+          ) : (
+            <>
+              <p className="text-5xl font-black text-gray-800">{targetWord?.kana}</p>
+              <p className="text-3xl font-mono text-gray-400 tracking-widest">
+                <span className="text-emerald-500 font-bold">{inputRomaji}</span>
+                {targetWord?.romaji.slice(inputRomaji.length)}
+              </p>
+            </>
+          )}
         </div>
 
         {/* 3. ミス発生時のみ表示されるアシストUI */}
-        {showKeyboard && targetWord && (
+        {gameState === "playing" && showKeyboard && nextChar && (
           <div className="p-5 bg-red-50 border-2 border-red-300 rounded-2xl text-center animate-bounce shadow-md">
             <p className="text-red-600 font-black mb-1">おっと！キーを確認してみよう</p>
             <p className="text-gray-600 text-sm mb-3">次に打つローマ字はこちら:</p>
             <div className="inline-block px-6 py-3 bg-red-500 text-white font-black text-3xl rounded-xl shadow-lg">
-              {targetWord.romaji[inputRomaji.length]?.toUpperCase()}
+              {nextChar.toUpperCase()}
             </div>
           </div>
         )}
