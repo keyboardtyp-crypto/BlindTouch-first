@@ -47,44 +47,101 @@ export const ROMAJI_MAP: Record<string, string[]> = {
   // た行・だ行
   た: ["ta"], ち: ["ti", "chi"], つ: ["tu", "tsu"], て: ["te"], と: ["to"],
   だ: ["da"], ぢ: ["di"], づ: ["du"], で: ["de"], ど: ["do"],
-  // な行・は行・ま行・や行・ら行・わ行
+  // な行
   な: ["na"], に: ["ni"], ぬ: ["nu"], ね: ["ne"], の: ["no"],
+  // は行・ば行・ぱ行
   は: ["ha"], ひ: ["hi"], ふ: ["hu", "fu"], へ: ["he"], ほ: ["ho"],
+  ば: ["ba"], び: ["bi"], ぶ: ["bu"], べ: ["be"], ぼ: ["bo"],
+  ぱ: ["pa"], ぴ: ["pi"], ぷ: ["pu"], ぺ: ["pe"], ぽ: ["po"],
+  // ま行・や行・ら行・わ行
   ま: ["ma"], み: ["mi"], む: ["mu"], め: ["me"], も: ["mo"],
   や: ["ya"], ゆ: ["yu"], よ: ["yo"],
   ら: ["ra"], り: ["ri"], る: ["ru"], れ: ["re"], ろ: ["ro"],
-  わ: ["wa"], を: ["wo"], ん: ["nn"],
-  // 拗音・しゃ行/ちゃ行など
-  しゃ: ["sya", "sha"], しゅ: ["syu", "shu"], しょ: ["syo", "sho"],
-  ちゃ: ["tya", "cha"], ちゅ: ["tyu", "chu"], ちょ: ["tyo", "cho"],
-  じゃ: ["zya", "ja", "jya"], じゅ: ["zyu", "ju", "jyu"], じょ: ["zyo", "jo", "jyo"],
+  わ: ["wa"], を: ["wo"], ん: ["n", "nn", "xn"],
+
+  // 促音・小文字単体（「っ」「ぁ」など）
+  っ: ["ltu", "xtu", "ltsu"],
+  ぁ: ["la", "xa"], ぃ: ["li", "xi"], ぅ: ["lu", "xu"], ぇ: ["le", "xe"], ぉ: ["lo", "xo"],
+  ゃ: ["lya", "xya"], ゅ: ["lyu", "xyu"], ょ: ["lyo", "xyo"],
+
+  // 拗音（しゃ行・ちゃ行・じゃ行等）
   きゃ: ["kya"], きゅ: ["kyu"], きょ: ["kyo"],
+  ぎゃ: ["gya"], ぎゅ: ["gyu"], ぎょ: ["gyo"],
+  しゃ: ["sya", "sha"], しゅ: ["syu", "shu"], しょ: ["syo", "sho"],
+  じゃ: ["zya", "ja", "jya"], じゅ: ["zyu", "ju", "jyu"], じょ: ["zyo", "jo", "jyo"],
+  ちゃ: ["tya", "cha"], ちゅ: ["tyu", "chu"], ちょ: ["tyo", "cho"],
+  ぢゃ: ["dya"], ぢゅ: ["dyu"], ぢょ: ["dyo"],
   にゃ: ["nya"], にゅ: ["nyu"], にょ: ["nyo"],
   ひゃ: ["hya"], ひゅ: ["hyu"], ひょ: ["hyo"],
-  みゃ: ["mya"], みゅ: ["myu"], みょ: ["myo"],
-  りゃ: ["rya"], りゅ: ["ryu"], りょ: ["ryo"],
-  ぎゃ: ["gya"], ぎゅ: ["gyu"], ぎょ: ["gyo"],
   びゃ: ["bya"], びゅ: ["byu"], びょ: ["byo"],
   ぴゃ: ["pya"], ぴゅ: ["pyu"], ぴょ: ["pyo"],
+  みゃ: ["mya"], みゅ: ["myu"], みょ: ["myo"],
+  りゃ: ["rya"], りゅ: ["ryu"], りょ: ["ryo"],
+  ふぁ: ["fa"], ふぃ: ["fi"], ふぇ: ["fe"], ふぉ: ["fo"],
+  てぃ: ["thi"], とぅ: ["twu"], でぃ: ["dhi"], どぅ: ["dwu"],
 };
 
 /**
  * かな文字列からあり得るすべてのローマ字入力パターンの配列を生成する関数
+ * （促音「っ」の次の子音重ね、撥音「ん」の単体打鍵・重ね打鍵に対応）
  */
 export function generateRomajiPatterns(kana: string): string[] {
   let patterns: string[] = [""];
 
   let i = 0;
   while (i < kana.length) {
-    // 2文字（拗音：しゃ、ちゃ等）を優先チェック
+    const currentChar = kana[i];
+    const nextChar = kana[i + 1];
+
+    // 1. 促音「っ」 + 次の音（子音重ね入力パターン対応）
+    if (currentChar === "っ" && nextChar) {
+      const twoChars = kana.slice(i + 1, i + 3);
+      let nextCandidates = ROMAJI_MAP[twoChars];
+      let step = 2;
+
+      if (!nextCandidates) {
+        nextCandidates = ROMAJI_MAP[nextChar] || [nextChar];
+        step = 1;
+      }
+
+      // 次の文字の先頭子音を重ねるパターン + 「ltu/xtu」直接入力パターン
+      const sokuonCandidates: string[] = [];
+      
+      // 子音重複パターン (例: か -> ka の先頭 k を重ねて kka)
+      for (const cand of nextCandidates) {
+        const firstConsonant = cand[0];
+        if (firstConsonant && !["a", "i", "u", "e", "o", "n"].includes(firstConsonant)) {
+          sokuonCandidates.push(firstConsonant + cand);
+        }
+      }
+
+      // 「ltu」「xtu」など直接入力して次に進むパターン
+      const defaultSokuon = ROMAJI_MAP["っ"] || ["ltu"];
+      for (const sok of defaultSokuon) {
+        for (const cand of nextCandidates) {
+          sokuonCandidates.push(sok + cand);
+        }
+      }
+
+      const nextPatterns: string[] = [];
+      for (const current of patterns) {
+        for (const cand of sokuonCandidates) {
+          nextPatterns.push(current + cand);
+        }
+      }
+      patterns = nextPatterns;
+      i += 1 + step;
+      continue;
+    }
+
+    // 2. 拗音（2文字のチェック：しゃ、ちゃ、てぃ等）
     const twoChars = kana.slice(i, i + 2);
     let candidates = ROMAJI_MAP[twoChars];
     let step = 2;
 
+    // 3. 1文字チェック
     if (!candidates) {
-      // 1文字チェック
-      const oneChar = kana.slice(i, i + 1);
-      candidates = ROMAJI_MAP[oneChar] || [oneChar]; // 未登録文字（記号やカタカナ等）はそのまま保持
+      candidates = ROMAJI_MAP[currentChar] || [currentChar];
       step = 1;
     }
 
@@ -98,7 +155,8 @@ export function generateRomajiPatterns(kana: string): string[] {
     i += step;
   }
 
-  return patterns;
+  // 重複を除去して返す
+  return Array.from(new Set(patterns));
 }
 
 // 簡単入力用のヘルパー関数
@@ -292,7 +350,7 @@ export const ROMAJI_STAGES: RomajiStage[] = [
     { kana: "わ" }, { kana: "を" }, { kana: "ん" },
   ]),
 
-  // レベル2: 基本の単語 (短め・2~3文字)
+  // レベル2: 基本の単語 (短め・2~3文字) - 濁音・促音・撥音を含む
   makeStage("r-2-1", 2, 1, "はじめてのまち", { name: "おうち", icon: "🏠" }, [
     { kana: "いえ" }, { kana: "かさ" }, { kana: "そら" },
   ]),
@@ -303,7 +361,7 @@ export const ROMAJI_STAGES: RomajiStage[] = [
     { kana: "パン" }, { kana: "すし" }, { kana: "みせ" },
   ]),
 
-  // レベル2: やや長めの単語・短文 (4~6文字)
+  // レベル2: やや長めの単語・短文 (4~6文字) - 濁音・促音・拗音など
   makeStage("r-2-4", 2, 4, "のりものがはしるまち", { name: "バス", icon: "🚌" }, [
     { kana: "くるま" }, { kana: "でんしゃ" }, { kana: "ひこうき" },
   ]),
