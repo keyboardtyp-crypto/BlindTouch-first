@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState } from "react";
 import { ROMAJI_STAGES } from "@/lib/typing-data";
 
@@ -8,9 +10,11 @@ export default function RomajiTypingGame() {
   const [showKeyboard, setShowKeyboard] = useState(false); // ミスフラグ
   const [unlockedBuildings, setUnlockedBuildings] = useState<string[]>([]);
 
-  const targetWord = currentStage.words[wordIndex];
+  const targetWord = currentStage?.words?.[wordIndex];
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!targetWord) return;
+
     const key = e.key.toLowerCase();
     const expectedKey = targetWord.romaji[inputRomaji.length];
 
@@ -27,8 +31,10 @@ export default function RomajiTypingGame() {
           setInputRomaji("");
         } else {
           // ステージクリア：街に新しい建物を追加
-          setUnlockedBuildings((prev) => [...prev, currentStage.rewardBuilding.icon]);
-          alert(`ステージクリア！街に「${currentStage.rewardBuilding.name}」が建設されました！`);
+          if (currentStage.rewardBuilding) {
+            setUnlockedBuildings((prev) => [...prev, currentStage.rewardBuilding.icon]);
+            alert(`ステージクリア！街に「${currentStage.rewardBuilding.name}」が建設されました！`);
+          }
         }
       }
     } else {
@@ -38,8 +44,8 @@ export default function RomajiTypingGame() {
   };
 
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-6" onKeyDown={handleKeyDown} tabIndex={0}>
-      {/* 1. 街づくり（または絵の完成度）表示エリア */}
+    <div className="p-6 max-w-4xl mx-auto space-y-6 outline-none" onKeyDown={handleKeyDown} tabIndex={0}>
+      {/* 1. 街づくり表示エリア */}
       <div className="p-4 bg-blue-50 dark:bg-slate-800 rounded-xl border text-center">
         <h2 className="text-xl font-bold mb-2">あなたの作った街</h2>
         <div className="flex justify-center gap-4 text-4xl h-16 items-center">
@@ -53,15 +59,15 @@ export default function RomajiTypingGame() {
 
       {/* 2. ローマ字お題表示 */}
       <div className="text-center space-y-2 py-8 bg-white dark:bg-slate-900 rounded-xl shadow-md">
-        <p className="text-4xl font-bold">{targetWord.kana}</p>
+        <p className="text-4xl font-bold">{targetWord?.kana}</p>
         <p className="text-2xl font-mono text-gray-500 tracking-widest">
           <span className="text-green-500">{inputRomaji}</span>
-          {targetWord.romaji.slice(inputRomaji.length)}
+          {targetWord?.romaji.slice(inputRomaji.length)}
         </p>
       </div>
 
       {/* 3. ミス時のみ動的に現れるキーボードUI */}
-      {showKeyboard && (
+      {showKeyboard && targetWord && (
         <div className="p-4 bg-red-50 border border-red-300 rounded-lg text-center animate-bounce">
           <p className="text-red-600 font-bold mb-2">間違えました！押すキーを確認してください</p>
           <div className="inline-block p-3 bg-red-500 text-white font-bold text-xl rounded shadow">
