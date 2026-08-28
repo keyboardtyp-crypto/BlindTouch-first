@@ -31,6 +31,12 @@ export interface RomajiStage {
   words: RomajiWord[];
 }
 
+
+
+
+
+
+
 // =============================================================
 // 1. ローマ字変換辞書 & 自動生成ロジック
 // =============================================================
@@ -82,9 +88,98 @@ export const ROMAJI_MAP: Record<string, string[]> = {
 };
 
 /**
+ * カタカナをひらがなに変換するヘルパー関数
+ */
+function katakanaToHiragana(str: string): string {
+  return str.replace(/[\u30a1-\u30f6]/g, (match) => {
+    return String.fromCharCode(match.charCodeAt(0) - 0x60);
+  });
+}
+
+/**
+ * かな・カナ文字列からあり得るすべてのローマ字入力パターンの配列を生成する関数
+ */
+export function generateRomajiPatterns(rawKana: string): string[] {
+  // カタカナが入ってきた場合はすべて「ひらがな」に統一
+  const kana = katakanaToHiragana(rawKana);
+
+  let patterns: string[] = [""];
+
+  let i = 0;
+  while (i < kana.length) {
+    const currentChar = kana[i];
+    const nextChar = kana[i + 1];
+
+    // 1. 促音「っ」 + 次の音（子音重ね入力パターン対応）
+    if (currentChar === "っ" && nextChar) {
+      const twoChars = kana.slice(i + 1, i + 3);
+      let nextCandidates = ROMAJI_MAP[twoChars];
+      let step = 2;
+
+      if (!nextCandidates) {
+        nextCandidates = ROMAJI_MAP[nextChar] || [nextChar];
+        step = 1;
+      }
+
+      const sokuonCandidates: string[] = [];
+      
+      // 子音重複パターン (例: か -> ka の先頭 k を重ねて kka)
+      for (const cand of nextCandidates) {
+        const firstConsonant = cand[0];
+        if (firstConsonant && !["a", "i", "u", "e", "o", "n"].includes(firstConsonant)) {
+          sokuonCandidates.push(firstConsonant + cand);
+        }
+      }
+
+      // 「ltu」「xtu」など直接入力して次に進むパターン
+      const defaultSokuon = ROMAJI_MAP["っ"] || ["ltu"];
+      for (const sok of defaultSokuon) {
+        for (const cand of nextCandidates) {
+          sokuonCandidates.push(sok + cand);
+        }
+      }
+
+      const nextPatterns: string[] = [];
+      for (const current of patterns) {
+        for (const cand of sokuonCandidates) {
+          nextPatterns.push(current + cand);
+        }
+      }
+      patterns = nextPatterns;
+      i += 1 + step;
+      continue;
+    }
+
+    // 2. 拗音（2文字のチェック：しゃ、ちゃ、てぃ等）
+    const twoChars = kana.slice(i, i + 2);
+    let candidates = ROMAJI_MAP[twoChars];
+    let step = 2;
+
+    // 3. 1文字チェック
+    if (!candidates) {
+      candidates = ROMAJI_MAP[currentChar] || [currentChar];
+      step = 1;
+    }
+
+    const nextPatterns: string[] = [];
+    for (const current of patterns) {
+      for (const cand of candidates) {
+        nextPatterns.push(current + cand);
+      }
+    }
+    patterns = nextPatterns;
+    i += step;
+  }
+
+  // 重複を除去して返す
+  return Array.from(new Set(patterns));
+}
+
+/**
  * かな文字列からあり得るすべてのローマ字入力パターンの配列を生成する関数
  * （促音「っ」の次の子音重ね、撥音「ん」の単体打鍵・重ね打鍵に対応）
  */
+/*
 export function generateRomajiPatterns(kana: string): string[] {
   let patterns: string[] = [""];
 
@@ -158,6 +253,10 @@ export function generateRomajiPatterns(kana: string): string[] {
   // 重複を除去して返す
   return Array.from(new Set(patterns));
 }
+*/
+
+
+
 
 // 簡単入力用のヘルパー関数
 function makeStage(

@@ -67,6 +67,7 @@ export default function RomajiPracticePage() {
     }
   }, [loading, gameState]);
 
+  // 1. 起動時に前回の進捗を復元
   useEffect(() => {
     const savedPoints = localStorage.getItem("romaji_practice_points");
     if (savedPoints) setRomajiPoints(parseInt(savedPoints, 10));
@@ -94,6 +95,7 @@ export default function RomajiPracticePage() {
     });
   }, []);
 
+  // 2. ローカルストレージ保存関数
   const saveProgressLocally = (stageIdx: number, buildings: string[]) => {
     localStorage.setItem("romaji_current_stage", stageIdx.toString());
     localStorage.setItem("romaji_unlocked_buildings", JSON.stringify(buildings));
@@ -119,17 +121,20 @@ export default function RomajiPracticePage() {
     const key = e.key.toLowerCase();
     const nextInput = inputRomaji + key;
 
-    const hasMatch = targetWord.romaji.some((pattern: string) => pattern.startsWith(nextInput));
+    // targetWord.romaji (配列) のいずれかのパターンが、nextInput で始まっているか判定
+    const hasMatch = targetWord.romaji.some((pattern) => pattern.startsWith(nextInput));
 
     if (hasMatch) {
       setShowKeyboard(false);
       setInputRomaji(nextInput);
 
+      // 完全一致するパターンがあればクリア
       if (targetWord.romaji.includes(nextInput)) {
         if (wordIndex + 1 < currentStage.words.length) {
           setWordIndex(wordIndex + 1);
           setInputRomaji("");
         } else {
+          // 🎉 ステップクリア処理
           playCelebrationSound();
 
           const newPoints = romajiPoints + 50;
@@ -202,7 +207,8 @@ export default function RomajiPracticePage() {
     );
   }
 
-  const displayRomaji = targetWord?.romaji.find((p: string) => p.startsWith(inputRomaji)) || targetWord?.romaji[0] || "";
+  // 表示用：最もマッチ度の高いパターンを選択
+  const displayRomaji = targetWord?.romaji.find((p) => p.startsWith(inputRomaji)) || targetWord?.romaji[0] || "";
   const nextChar = displayRomaji[inputRomaji.length]?.toLowerCase() || null;
 
   return (
@@ -236,6 +242,7 @@ export default function RomajiPracticePage() {
       </header>
 
       <main className="w-full max-w-4xl space-y-4">
+        {/* 1. 現在のステージであつめた絵 */}
         <div className="p-3 bg-white rounded-2xl shadow-sm border text-center">
           <h2 className="text-xs font-bold text-gray-500 mb-1">
             STAGE {currentStage?.stage} であつめた絵 🏙️
@@ -255,6 +262,7 @@ export default function RomajiPracticePage() {
           </div>
         </div>
 
+        {/* 2. 問題表示エリア */}
         <div className="text-center space-y-2 py-6 bg-white rounded-2xl shadow-md border min-h-[160px] flex flex-col justify-center items-center px-4">
           {gameState === "completed" ? (
             <div className="space-y-2">
@@ -289,6 +297,7 @@ export default function RomajiPracticePage() {
           )}
         </div>
 
+        {/* 3. ミス時のキーボードガイド */}
         {gameState === "playing" && showKeyboard && nextChar && (
           <div className="p-3 bg-white border-2 border-red-200 rounded-2xl shadow-lg text-center space-y-2 animate-in fade-in duration-200">
             <p className="text-red-500 font-black text-xs">
