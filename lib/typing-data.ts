@@ -137,9 +137,18 @@ export const BLIND_STAGES: Level[] = [
   // ==========================================
   { id: "b-2-1", stage: 2, step: 1, title: "人差し指混合", keys: "yuhjnmtrgfbv", homeKey: null, threshold: 85, showHighlight: true, isBlind: false },
   { id: "b-2-2", stage: 2, step: 2, title: "人差し指混合 (ブラインド)", keys: "yuhjnmtrgfbv", homeKey: null, threshold: 85, showHighlight: false, isBlind: true },
-  { id: "b-2-3", stage: 2, step: 3, title: "中指混合", keys: "ik,edc", homeKey: null, threshold: 85, showHighlight: true, isBlind: false },
-  { id: "b-2-4", stage: 2, step: 4, title: "中指混合 (ブラインド)", keys: "ik,edc", homeKey: null, threshold: 85, showHighlight: false, isBlind: true },
-  { id: "b-2-5", stage: 2, step: 5, title: "薬指混合", keys: "ol.wsx", homeKey: null, threshold: 85, showHighlight: true, isBlind: false },
+  
+  //{ id: "b-2-3", stage: 2, step: 3, title: "中指混合", keys: "ik,edc", homeKey: null, threshold: 85, showHighlight: true, isBlind: false },
+  // 9. 人差し指＋中指混合 (Step 20 に相当)
+//  { id: "f-10-1", stage: 10, step: 1, title: "人差し指＋中指混合", keys: "juhmnyfrgvbtki,dec", homeKey: null, threshold: 90, showHighlight: false, isBlind: true },
+{ id: "b-2-3", stage: 2, step: 3, title: "中指混合＋人差し指混合", keys: "juhmnyfrgvbtki,dec", homeKey: null, threshold: 85, showHighlight: true, isBlind: false },
+  //
+  
+ // { id: "b-2-4", stage: 2, step: 4, title: "中指混合 (ブラインド)", keys: "ik,edc", homeKey: null, threshold: 85, showHighlight: false, isBlind: true },
+  
+ { id: "b-2-4", stage: 2, step: 4, title: "中指混合＋人差し指混合 (ブラインド)", keys: "juhmnyfrgvbtki,dec", homeKey: null, threshold: 85, showHighlight: false, isBlind: true },
+  
+ { id: "b-2-5", stage: 2, step: 5, title: "薬指混合", keys: "ol.wsx", homeKey: null, threshold: 85, showHighlight: true, isBlind: false },
   { id: "b-2-6", stage: 2, step: 6, title: "薬指混合 (ブラインド)", keys: "ol.wsx", homeKey: null, threshold: 85, showHighlight: false, isBlind: true },
   { id: "b-2-7", stage: 2, step: 7, title: "小指混合", keys: "p@;:/\ qaz", homeKey: null, threshold: 85, showHighlight: true, isBlind: false },
   { id: "b-2-8", stage: 2, step: 8, title: "小指混合 (ブラインド)", keys: "p@;:/\ qaz", homeKey: null, threshold: 85, showHighlight: false, isBlind: true },
