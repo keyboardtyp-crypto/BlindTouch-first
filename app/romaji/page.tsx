@@ -57,8 +57,8 @@ export default function RomajiPracticePage() {
 
   const containerRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
-  
-  const currentStage: RomajiStage = ROMAJI_STAGES[currentStageIndex];
+
+  const currentStage: RomajiStage = ROMAJI_STAGES[currentStageIndex] || ROMAJI_STAGES[0];
   const targetWord = currentStage?.words?.[wordIndex];
 
   useEffect(() => {
@@ -67,39 +67,39 @@ export default function RomajiPracticePage() {
     }
   }, [loading, gameState]);
 
-  const loadUserProgress = async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from("user_romaji_progress")
-        .select("unlocked_buildings")
-        .eq("user_id", userId);
-
-      if (error) {
-        console.error("❌ 進捗取得エラー:", error.message);
-        return;
-      }
-
-      if (data && data.length > 0) {
-        const buildings = data.flatMap((row) => row.unlocked_buildings || []);
-        setUnlockedBuildings(Array.from(new Set(buildings)));
-      }
-    } catch (e) {
-      console.error("進捗ロードエラー:", e);
-    }
-  };
-
+  // 1. 起動時に前回の進捗（ステージ番号・絵・ポイント）を復元
   useEffect(() => {
     const savedPoints = localStorage.getItem("romaji_practice_points");
     if (savedPoints) setRomajiPoints(parseInt(savedPoints, 10));
 
+    const savedStage = localStorage.getItem("romaji_current_stage");
+    if (savedStage) {
+      const parsedStage = parseInt(savedStage, 10);
+      if (parsedStage < ROMAJI_STAGES.length) {
+        setCurrentStageIndex(parsedStage);
+      }
+    }
+
+    const savedBuildings = localStorage.getItem("romaji_unlocked_buildings");
+    if (savedBuildings) {
+      try {
+        setUnlockedBuildings(JSON.parse(savedBuildings));
+      } catch (e) {
+        console.error("Failed to parse saved buildings", e);
+      }
+    }
+
     supabase.auth.getUser().then(async ({ data: { user: currentUser } }) => {
       setUser(currentUser);
-      if (currentUser) {
-        await loadUserProgress(currentUser.id);
-      }
       setLoading(false);
     });
   }, []);
+
+  // 2. ステージや獲得した絵が更新されたらローカルストレージに自動保存
+  const saveProgressLocally = (stageIdx: number, buildings: string[]) => {
+    localStorage.setItem("romaji_current_stage", stageIdx.toString());
+    localStorage.setItem("romaji_unlocked_buildings", JSON.stringify(buildings));
+  };
 
   const handleKeyDown = async (e: React.KeyboardEvent) => {
     if (gameState === "waiting") {
@@ -138,10 +138,8 @@ export default function RomajiPracticePage() {
           setRomajiPoints(newPoints);
           localStorage.setItem("romaji_practice_points", newPoints.toString());
 
-          // 新しい建物を街に追加
           const newBuildingIcon = currentStage.rewardBuilding.icon;
           const updatedBuildings = [...unlockedBuildings, newBuildingIcon];
-          setUnlockedBuildings(updatedBuildings);
 
           if (user) {
             const jstNow = getJSTDateString();
@@ -158,14 +156,22 @@ export default function RomajiPracticePage() {
           }
 
           if (currentStageIndex + 1 < ROMAJI_STAGES.length) {
-            alert(`ステージクリア！街に「${currentStage.rewardBuilding.name} (${newBuildingIcon})」が追加されました！`);
-            setCurrentStageIndex(currentStageIndex + 1);
+            alert(`ステージクリア！「${currentStage.rewardBuilding.name} (${newBuildingIcon})」を獲得しました！`);
+
+            const nextStageIndex = currentStageIndex + 1;
+            // 💡 次のステージへ進む際、絵（unlockedBuildings）をクリアして初期化します
+            setCurrentStageIndex(nextStageIndex);
             setWordIndex(0);
             setInputRomaji("");
+            setUnlockedBuildings([]); 
             setGameState("waiting");
+
+            // 進捗を保存（絵は空で保存）
+            saveProgressLocally(nextStageIndex, []);
           } else {
-            alert(`全ステージクリア！素晴らしい街が完成しました！🎉`);
+            alert(`全ステージクリア！素晴らしい達成度です！🎉`);
             setGameState("completed");
+            saveProgressLocally(0, []);
           }
         }
       }
@@ -174,6 +180,15 @@ export default function RomajiPracticePage() {
         setShowKeyboard(true);
       }
     }
+  };
+
+  const handleReset = () => {
+    setCurrentStageIndex(0);
+    setWordIndex(0);
+    setInputRomaji("");
+    setUnlockedBuildings([]);
+    setGameState("waiting");
+    saveProgressLocally(0, []);
   };
 
   if (loading) {
@@ -217,16 +232,22 @@ export default function RomajiPracticePage() {
       </header>
 
       <main className="w-full max-w-4xl space-y-4">
-        {/* 1. 街づくり表示エリア (絵が横に並んで増えていく) */}
+        {/* 1. 現在のステージで獲得した絵の表示エリア */}
         <div className="p-3 bg-white rounded-2xl shadow-sm border text-center">
-          <h2 className="text-xs font-bold text-gray-500 mb-1">発展させたあなたの街 🏙️</h2>
+          <h2 className="text-xs font-bold text-gray-500 mb-1">
+            STAGE {currentStage?.stage}-{currentStage?.step} であつめた絵 🏙️
+          </h2>
           <div className="flex justify-center flex-wrap gap-3 text-3xl min-h-[48px] items-center bg-emerald-50 rounded-xl border border-emerald-100 p-2">
             {unlockedBuildings.length === 0 ? (
               <span className="text-xs text-emerald-600 font-medium">
-                ステージをクリアして絵（建物・乗り物）を増やしていこう！
+                問題をクリアして絵を増やしていこう！
               </span>
             ) : (
-              unlockedBuildings.map((icon, i) => <span key={i} className="animate-pop">{icon}</span>)
+              unlockedBuildings.map((icon, i) => (
+                <span key={i} className="animate-pop">
+                  {icon}
+                </span>
+              ))
             )}
           </div>
         </div>
@@ -238,13 +259,7 @@ export default function RomajiPracticePage() {
               <h2 className="text-2xl font-black text-emerald-600">🎉 全ステージ達成！</h2>
               <p className="text-xs text-gray-600 font-bold">すべてのローマ字問題をクリアしました！</p>
               <button
-                onClick={() => {
-                  setCurrentStageIndex(0);
-                  setWordIndex(0);
-                  setInputRomaji("");
-                  setUnlockedBuildings([]);
-                  setGameState("waiting");
-                }}
+                onClick={handleReset}
                 className="mt-2 px-5 py-2 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-sm rounded-xl shadow-md transition-transform active:scale-95"
               >
                 最初からもう一度遊ぶ 🔄
@@ -279,11 +294,7 @@ export default function RomajiPracticePage() {
               間違えました！青く光っているキーを押してください 💡
             </p>
             <div className="scale-90 origin-top">
-              <Keyboard
-                targetKey={nextChar}
-                highlightTarget={true}
-                homeKey={null}
-              />
+              <Keyboard targetKey={nextChar} highlightTarget={true} homeKey={null} />
             </div>
           </div>
         )}
