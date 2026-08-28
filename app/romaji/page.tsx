@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { ROMAJI_STAGES, RomajiLevel } from "@/lib/typing-data";
-import { Keyboard } from "@/components/keyboard";
+import { Keyboard } from "@/components/Keyboard";
 import type { User } from "@supabase/supabase-js";
 
 const playCelebrationSound = () => {
