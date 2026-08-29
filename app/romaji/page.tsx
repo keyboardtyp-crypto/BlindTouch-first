@@ -105,9 +105,14 @@ export default function RomajiPracticePage() {
     if (gameState === "waiting") {
       if (e.code === "Space" || e.key === " ") {
         e.preventDefault();
-        
+/*        
 // ステージの最初の問題（wordIndex === 0）のスペースキー押下時に絵をクリアする
         if (wordIndex === 0) {
+          setUnlockedBuildings([]);
+        }
+*/
+// ステージの「最初のステップ(step 1)」かつ「最初の単語(wordIndex 0)」のスペースキー押下時のみリセット
+        if (currentStage.step === 1 && wordIndex === 0) {
           setUnlockedBuildings([]);
         }
 
@@ -161,7 +166,7 @@ export default function RomajiPracticePage() {
               { onConflict: "user_id,stage_id" }
             );
           }
-
+/*
           if (currentStageIndex + 1 < ROMAJI_STAGES.length) {
             const nextStageIndex = currentStageIndex + 1;
             const nextStage = ROMAJI_STAGES[nextStageIndex];
@@ -174,6 +179,23 @@ export default function RomajiPracticePage() {
             } else {
               saveProgressLocally(nextStageIndex, updatedBuildings);
             }
+*/
+// クリア後のステージ遷移部分
+          if (currentStageIndex + 1 < ROMAJI_STAGES.length) {
+            const nextStageIndex = currentStageIndex + 1;
+            const nextStage = ROMAJI_STAGES[nextStageIndex];
+
+            alert(`クリア！「${currentStage.rewardBuilding.name} (${newBuildingIcon})」を獲得しました！`);
+
+            // 次のステージの stage 番号が異なる場合（グループが変わる場合）のみ絵を消す
+            if (nextStage.stage !== currentStage.stage) {
+              setUnlockedBuildings([]);
+              saveProgressLocally(nextStageIndex, []);
+            } else {
+              // 同じ stage 内（例: stage 4 の step 1 -> step 2）なら絵を引き継ぐ
+              saveProgressLocally(nextStageIndex, updatedBuildings);
+            }
+
 
             setCurrentStageIndex(nextStageIndex);
             setWordIndex(0);
