@@ -327,7 +327,7 @@ const RAW_ROMAJI_STAGES: RawRomajiStage[] = [
     title: "ちりもつもればやまとなる",
     rewardBuilding: { name: "やま", icon: "🏔" },
     words: [
-      { kana: "ちりもつもればやまとなる　とは、" },
+      { kana: "ちりもつもればやまとなる とは、" },
       { kana: "わずかなものでも、むしできないほどたくさんあつまれば、おおきなものになる。" },
       { kana: "といういみです。" },
     ],
@@ -341,7 +341,7 @@ const RAW_ROMAJI_STAGES: RawRomajiStage[] = [
     title: "ときはかねなり",
     rewardBuilding: { name: "とけい", icon: "⌚" },
     words: [
-      { kana: "ときはかねなり　とは、" },
+      { kana: "ときはかねなり とは、" },
       { kana: "じかんもおかねとおなじようにきちょうであるため、むだにしてはいけない。" },
       { kana: "といういみです。" },
     ],
@@ -353,7 +353,7 @@ const RAW_ROMAJI_STAGES: RawRomajiStage[] = [
     title: "いそがばまわれ",
     rewardBuilding: { name: "道", icon: "🔂" },
     words: [
-      { kana: "いそがばまわれ　とは、" },
+      { kana: "いそがばまわれ とは、" },
       { kana: "きびしいときに、あんぜんでかくじつなほうほうをえらぶほうがけっかてきにはやい。" },
       { kana: "といういみです。" },
     ],
@@ -365,7 +365,7 @@ const RAW_ROMAJI_STAGES: RawRomajiStage[] = [
     title: "はなよりだんご",
     rewardBuilding: { name: "だんご", icon: "🍡" },
     words: [
-      { kana: "はなよりだんご　とは、" },
+      { kana: "はなよりだんご とは、" },
       { kana: "ふうりゅうやみためよりも、じつえきやじつようせいをおもんじること。" },
       { kana: "といういみです。" },
     ],
