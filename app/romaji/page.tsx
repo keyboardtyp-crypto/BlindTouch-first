@@ -105,6 +105,12 @@ export default function RomajiPracticePage() {
     if (gameState === "waiting") {
       if (e.code === "Space" || e.key === " ") {
         e.preventDefault();
+        
+// ステージの最初の問題（wordIndex === 0）のスペースキー押下時に絵をクリアする
+        if (wordIndex === 0) {
+          setUnlockedBuildings([]);
+        }
+
         setGameState("playing");
         setInputRomaji("");
         setShowKeyboard(false);
